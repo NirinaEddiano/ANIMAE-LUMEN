@@ -39,7 +39,14 @@ const filterTranslations = {
   }
 };
 
-const projectsData = [
+// Définition de la structure stricte d'un projet pour TypeScript
+interface Project {
+  id: string;
+  title: string;
+  category: 'retreats' | 'ceremonies' | 'festivals' | 'portraits';
+  imageUrl: string;
+}
+const projectsData: Project[] = [
   // --- RETRAITES SPIRITUELLES (8 projets) ---
   {
     id: "retreat-ibiza",
