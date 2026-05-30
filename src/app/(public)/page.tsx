@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import Link from 'next/link';
 import Script from 'next/script';
+import { supabase } from '@/lib/supabase';
 
 // 1. Définition des données pour les 4 services (Diaporama & Carrousel)
 const servicesData = {
@@ -374,10 +375,57 @@ const instagramSectionTranslations = {
 };
 
 
-export default function HomePage() {
+export default function HomePage({ 
+  isEditing = false, 
+  selectedKey = null, 
+  onSelectKey = () => {}, 
+  onUpdateText = () => {},
+  dbContent = [] 
+}: { 
+  isEditing?: boolean; 
+  selectedKey?: string | null; 
+  onSelectKey?: (key: string) => void; 
+  onUpdateText?: (key: string, value: string) => void;
+  dbContent?: any[];
+}) {
   const { language } = useLanguage();
   const [activeIndex, setActiveIndex] = useState(0);
   const autoPlayTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // 1. CHARGEMENT UNIQUE DE LA BASE DE DONNÉES (Pour les visiteurs normaux)
+  const [localDbContent, setLocalDbContent] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Si nous sommes dans l'espace administration, c'est l'admin qui fournit déjà les données (via dbContent)
+    if (isEditing) return; 
+
+    const fetchContent = async () => {
+      const { data } = await supabase.from('site_content').select('*');
+      if (data) setLocalDbContent(data);
+    };
+    fetchContent();
+  }, [isEditing]);
+
+  // Détermine si on doit utiliser les données locales de secours ou celles fournies par l'admin
+  const activeContent = isEditing ? dbContent : localDbContent;
+
+  // 2. FONCTIONS DE RÉCUPÉRATION DU CONTENU ET DES STYLES (Déclarées une seule fois sans doublons)
+  const getContent = (key: string, field: 'value_fr' | 'value_en', defaultValue: string) => {
+    const item = activeContent.find(i => i.key === key);
+    return item ? item[field] : defaultValue;
+  };
+
+  const getInlineStyle = (key: string) => {
+    const item = activeContent.find(i => i.key === key);
+    if (!item) return {};
+    return {
+      fontFamily: item.font_family,
+      fontSize: item.font_size,
+      fontWeight: item.is_bold ? 'bold' : 'light' as const,
+    };
+  };
+
+  // -------------------------------------------------------------
 
   const services = servicesData[language];
   const ui = commonUiTranslations[language];
@@ -477,41 +525,74 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
     <main className="min-h-screen bg-[#FAF9F6] overflow-x-hidden">
       
       {/* SECTION HERO : Diaporama de fond plein écran */}
-      {/* SECTION HERO : Diaporama de fond plein écran */}
+      {/* SECTION HERO : Diaporama de fond dynamique */}
       <section className="relative h-screen w-full flex flex-col justify-between items-center px-6 pt-28 pb-12 overflow-hidden bg-neutral-900 text-white">
         
-        {/* Images de fond superposées avec une opacité plus élevée (80%) pour révéler les couleurs */}
-        {services.map((service, index) => (
-          <div
-            key={service.id}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-              activeIndex === index ? 'opacity-100' : 'opacity-0'
-            }`}
-            style={{
-              backgroundImage: `url(${service.imageUrl})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
-          />
-        ))}
+        {/* Images de fond superposées lues depuis Supabase (Cliquables au survol) */}
+        {services.map((service, index) => {
+          const imageKey = `service_image_${service.id}`;
+          const isSelected = selectedKey === imageKey;
 
-        {/* Overlay d'assombrissement beaucoup plus léger et transparent */}
+          return (
+            <div
+              key={service.id}
+              onClick={() => {
+                if (isEditing) {
+                  onSelectKey(imageKey);
+                }
+              }}
+              // Utilisation de pointer-events-auto uniquement sur la diapositive active pour débloquer l'édition des 4 photos !
+              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                activeIndex === index ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+              } ${isEditing ? 'cursor-pointer hover:brightness-90' : ''} ${
+                isEditing && isSelected ? 'ring-4 ring-white/40 ring-inset' : ''
+              }`}
+              style={{
+                backgroundImage: `url(${getContent(imageKey, 'value_fr', service.imageUrl)})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            />
+          );
+        })}
+
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-black/10 to-black/10 pointer-events-none" />
 
-        {/* 1. TEXTE CENTRAL : Titre & Description du service actif */}
+        {/* 1. TEXTE CENTRAL DYNAMIQUE : Titre & Description éditables */}
         <div className="relative z-10 text-center max-w-3xl mt-auto mb-6 px-4">
           <div className="min-h-[160px] md:min-h-[140px] flex flex-col justify-center items-center space-y-4">
-            {/* Titre artistique (Cormorant Garamond) */}
-            <h1 className="font-serif text-3xl md:text-5xl lg:text-6xl tracking-wide font-light leading-tight transition-all duration-700">
-              {services[activeIndex].title}
+            
+            {/* Titre artistique éditable en direct (Applique la police d'art et la taille en pixels choisies) */}
+            <h1
+              contentEditable={isEditing}
+              suppressContentEditableWarning={true}
+              onBlur={(e) => onUpdateText(`service_title_${services[activeIndex].id}`, e.currentTarget.innerText || '')}
+              onClick={() => isEditing && onSelectKey(`service_title_${services[activeIndex].id}`)}
+              style={getInlineStyle(`service_title_${services[activeIndex].id}`)}
+              className={`p-2 transition-all outline-none rounded-xs whitespace-pre-wrap ${
+                isEditing ? 'hover:bg-white/10 cursor-text' : ''
+              } ${isEditing && selectedKey === `service_title_${services[activeIndex].id}` ? 'border border-dashed border-white bg-white/10' : ''}`}
+            >
+              {getContent(`service_title_${services[activeIndex].id}`, language === 'fr' ? 'value_fr' : 'value_en', services[activeIndex].title)}
             </h1>
-            {/* Description épurée (Inter) */}
-            <p className="font-sans text-xs md:text-sm tracking-[0.15em] leading-relaxed font-light opacity-80 max-w-xl transition-all duration-700">
-              {services[activeIndex].description}
+
+            {/* Description éditables en direct */}
+            <p
+              contentEditable={isEditing}
+              suppressContentEditableWarning={true}
+              onBlur={(e) => onUpdateText(`service_desc_${services[activeIndex].id}`, e.currentTarget.innerText || '')}
+              onClick={() => isEditing && onSelectKey(`service_desc_${services[activeIndex].id}`)}
+              style={getInlineStyle(`service_desc_${services[activeIndex].id}`)}
+              className={`p-2 transition-all outline-none rounded-xs whitespace-pre-wrap ${
+                isEditing ? 'hover:bg-white/10 cursor-text' : ''
+              } ${isEditing && selectedKey === `service_desc_${services[activeIndex].id}` ? 'border border-dashed border-white bg-white/10' : ''}`}
+            >
+              {getContent(`service_desc_${services[activeIndex].id}`, language === 'fr' ? 'value_fr' : 'value_en', services[activeIndex].description)}
             </p>
+
           </div>
 
-          {/* Boutons d'action épurés */}
+          {/* Boutons d'action d'origine */}
           <div className="flex items-center justify-center space-x-6 mt-6">
             <button className="bg-white text-neutral-900 text-xs uppercase tracking-[0.2em] font-medium px-8 py-3 rounded-full shadow-lg transition-transform duration-300 hover:scale-105">
               {ui.btnPortfolio}
@@ -522,12 +603,14 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
           </div>
         </div>
 
-        {/* 2. CARROUSEL EN ARCHE (Bas de la section Hero) */}
+        {/* 2. CARROUSEL EN ARCHE */}
         <div className="relative z-20 w-full max-w-4xl h-[180px] md:h-[220px] flex items-center justify-center pointer-events-auto">
           <div className="relative w-[130px] md:w-[170px] h-full flex items-center justify-center">
             
             {services.map((service, index) => {
               const isActive = index === activeIndex;
+              const imageKey = `service_image_${service.id}`;
+
               return (
                 <button
                   key={service.id}
@@ -537,26 +620,14 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
                     isActive ? 'cursor-default ring-1 ring-white/30' : 'cursor-pointer'
                   }`}
                 >
-                  {/* Image de la carte */}
                   <img
-                    src={service.imageUrl}
+                    src={getContent(imageKey, 'value_fr', service.imageUrl)}
                     alt={service.title}
                     className={`w-full h-full object-cover transition-transform duration-500 ${
                       isActive ? 'scale-100' : 'scale-110 group-hover:scale-115'
                     }`}
                   />
-                  {/* Surcouche d'assombrissement sur les cartes inactives */}
-                  <div
-                    className={`absolute inset-0 bg-neutral-950/30 transition-opacity duration-500 ${
-                      isActive ? 'opacity-0' : 'opacity-40 group-hover:opacity-20'
-                    }`}
-                  />
-                  {/* Titre discret sur la carte */}
-                  <div className="absolute bottom-3 left-0 w-full text-center px-2">
-                    <p className="text-[9px] md:text-xxs tracking-[0.25em] uppercase font-light text-white drop-shadow-md">
-                      
-                    </p>
-                  </div>
+                  <div className={`absolute inset-0 bg-neutral-950/30 transition-opacity duration-500 ${isActive ? 'opacity-0' : 'opacity-40 group-hover:opacity-20'}`} />
                 </button>
               );
             })}
@@ -566,159 +637,338 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
 
       </section>
 
-      {/* SECTION PHILOSOPHIE / UNIVERS ARTISTIQUE ASYMÉTRIQUE */}
-<section className="bg-[#FAF9F6] py-24 md:py-36 px-6 lg:px-12">
-  <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
-    
-    {/* COLONNE GAUCHE (5/12) : Une grande image verticale artistique */}
-    <div className="lg:col-span-5 space-y-4">
-      <div className="overflow-hidden bg-neutral-100 aspect-[3/4] relative group">
-        <img
-          src="https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=1000&q=80"
-          alt={visionTranslations[language].caption1}
-          className="w-full h-full object-cover grayscale-25 transition-transform duration-[2000ms] ease-out group-hover:scale-105"
-        />
-        {/* Voile de lumière douce au survol */}
-        <div className="absolute inset-0 bg-neutral-900/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
-      </div>
-      <p className="font-sans text-[10px] tracking-[0.25em] uppercase font-light text-neutral-400">
-        [ {visionTranslations[language].caption1} ]
-      </p>
-    </div>
+      {/* SECTION PHILOSOPHIE / UNIVERS ARTISTIQUE ASYMÉTRIQUE DYNAMIQUE */}
+      <section className="bg-[#FAF9F6] py-24 md:py-36 px-6 lg:px-12">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
+          
+          {/* COLONNE GAUCHE (5/12) : Grande photo verticale d'art chaleureuse (Valérie) */}
+          <div className="lg:col-span-5 space-y-4">
+            <div 
+              onClick={() => {
+                if (isEditing) {
+                  onSelectKey('vision_image_1');
+                  const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                  fileInput?.click(); // Déclenche l'upload local
+                }
+              }}
+              className={`overflow-hidden bg-neutral-100 aspect-[3/4] relative group shadow-sm ${
+                isEditing ? 'cursor-pointer hover:brightness-95' : ''
+              } ${isEditing && selectedKey === 'vision_image_1' ? 'ring-4 ring-neutral-400 ring-inset' : ''}`}
+            >
+              {/* Charge par défaut le portrait de Valérie pour éliminer définitivement le bâtiment bleu */}
+              <img
+                src={getContent('vision_image_1', 'value_fr', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=80')}
+                alt={visionTranslations[language].caption1}
+                className="w-full h-full object-cover grayscale-25 transition-transform duration-[2000ms] ease-out group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-neutral-900/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
+            </div>
+            
+            {/* Légende sous la photo 1 désormais éditable en direct à l'écran */}
+            <p 
+              contentEditable={isEditing}
+              suppressContentEditableWarning={true}
+              onBlur={(e) => onUpdateText('vision_caption_1', e.currentTarget.innerText || '')}
+              onClick={() => isEditing && onSelectKey('vision_caption_1')}
+              style={getInlineStyle('vision_caption_1')}
+              className={`font-sans text-[10px] tracking-[0.25em] uppercase font-light text-neutral-400 text-left p-1.5 transition-all outline-none rounded-xs whitespace-pre-wrap ${
+                isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+              } ${isEditing && selectedKey === 'vision_caption_1' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+            >
+              [ {getContent('vision_caption_1', language === 'fr' ? 'value_fr' : 'value_en', visionTranslations[language].caption1)} ]
+            </p>
+          </div>
 
-    {/* COLONNE DROITE (7/12) : Titres, philosophie et une seconde photo horizontale décalée */}
-    <div className="lg:col-span-7 flex flex-col justify-center space-y-12 lg:pl-8">
-      
-      {/* Textes de présentation */}
-      <div className="space-y-6 max-w-xl">
-        <span className="font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block animate-fade-in">
-          {visionTranslations[language].tagline}
-        </span>
-        <h2 className="font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight">
-          {visionTranslations[language].heading}
-        </h2>
-        <div className="w-16 h-[1px] bg-neutral-300" />
-        <p className="font-sans text-sm md:text-base font-light text-neutral-600 leading-relaxed tracking-wide">
-          {visionTranslations[language].text}
-        </p>
-        <div className="pt-4">
-          <Link
-            href="/about"
-            className="text-xs uppercase tracking-[0.25em] font-light text-neutral-800 border-b border-neutral-800/20 pb-2 hover:border-neutral-800/80 transition-all duration-300 inline-block"
-          >
-            {language === 'fr' ? "Découvrir mon histoire →" : "Discover my journey →"}
-          </Link>
+          {/* COLONNE DROITE (7/12) : Titres et philosophie éditables en direct */}
+          <div className="lg:col-span-7 flex flex-col justify-center space-y-12 lg:pl-8 text-left">
+            
+            {/* Textes de présentation éditables */}
+            <div className="space-y-6 max-w-xl">
+              <span
+                contentEditable={isEditing}
+                suppressContentEditableWarning={true}
+                onBlur={(e) => onUpdateText('vision_tagline', e.currentTarget.innerText || '')}
+                onClick={() => isEditing && onSelectKey('vision_tagline')}
+                style={getInlineStyle('vision_tagline')}
+                className={`p-1.5 transition-all outline-none rounded-xs whitespace-pre-wrap block ${
+                  isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+                } ${isEditing && selectedKey === 'vision_tagline' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+              >
+                {getContent('vision_tagline', language === 'fr' ? 'value_fr' : 'value_en', visionTranslations[language].tagline)}
+              </span>
+
+              <h2
+                contentEditable={isEditing}
+                suppressContentEditableWarning={true}
+                onBlur={(e) => onUpdateText('vision_heading', e.currentTarget.innerText || '')}
+                onClick={() => isEditing && onSelectKey('vision_heading')}
+                style={getInlineStyle('vision_heading')}
+                className={`p-2 transition-all outline-none rounded-xs whitespace-pre-wrap block leading-tight ${
+                  isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+                } ${isEditing && selectedKey === 'vision_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+              >
+                {getContent('vision_heading', language === 'fr' ? 'value_fr' : 'value_en', visionTranslations[language].heading)}
+              </h2>
+
+              <div className="w-16 h-[1px] bg-neutral-300" />
+
+              <p
+                contentEditable={isEditing}
+                suppressContentEditableWarning={true}
+                onBlur={(e) => onUpdateText('vision_description', e.currentTarget.innerText || '')}
+                onClick={() => isEditing && onSelectKey('vision_description')}
+                style={getInlineStyle('vision_description')}
+                className={`p-2 transition-all outline-none rounded-xs whitespace-pre-wrap block leading-relaxed tracking-wide text-neutral-600 ${
+                  isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+                } ${isEditing && selectedKey === 'vision_description' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+              >
+                {getContent('vision_description', language === 'fr' ? 'value_fr' : 'value_en', visionTranslations[language].text)}
+              </p>
+
+              <div className="pt-4">
+                <Link
+                  href="/about"
+                  className="text-xs uppercase tracking-[0.25em] font-light text-neutral-800 border-b border-neutral-800/20 pb-2 hover:border-neutral-800/80 transition-all duration-300 inline-block"
+                >
+                  {language === 'fr' ? "Découvrir mon histoire →" : "Discover my journey →"}
+                </Link>
+              </div>
+            </div>
+
+            {/* Seconde image horizontale asymétrique cliquable et remplaçable */}
+            <div className="space-y-4 self-end w-full md:w-[85%]">
+              <div 
+                onClick={() => {
+                  if (isEditing) {
+                    onSelectKey('vision_image_2');
+                    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                    fileInput?.click(); // Déclenche l'upload local
+                  }
+                }}
+                className={`overflow-hidden bg-neutral-100 aspect-[16/10] relative group shadow-sm ${
+                  isEditing ? 'cursor-pointer hover:brightness-95' : ''
+                } ${isEditing && selectedKey === 'vision_image_2' ? 'ring-4 ring-neutral-400 ring-inset' : ''}`}
+              >
+                <img
+                  src={getContent('vision_image_2', 'value_fr', 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=80')}
+                  alt={visionTranslations[language].caption2}
+                  className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-neutral-900/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
+              </div>
+              
+              {/* Légende sous la photo 2 désormais éditable en direct à l'écran */}
+              <div className="flex justify-end">
+                <p 
+                  contentEditable={isEditing}
+                  suppressContentEditableWarning={true}
+                  onBlur={(e) => onUpdateText('vision_caption_2', e.currentTarget.innerText || '')}
+                  onClick={() => isEditing && onSelectKey('vision_caption_2')}
+                  style={isEditing ? getInlineStyle('vision_caption_2') : {}}
+                  className={`font-sans text-[10px] tracking-[0.25em] uppercase font-light text-neutral-400 text-right p-1.5 transition-all outline-none rounded-xs ${
+                    isEditing ? 'hover:bg-neutral-100 cursor-text animate-none' : ''
+                  } ${isEditing && selectedKey === 'vision_caption_2' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+                >
+                  [ {getContent('vision_caption_2', language === 'fr' ? 'value_fr' : 'value_en', visionTranslations[language].caption2)} ]
+                </p>
+              </div>
+            </div>
+
+          </div>
+
         </div>
-      </div>
+      </section>
 
-      {/* Seconde image horizontale asymétrique (Rituels / Cérémonies) */}
-      <div className="space-y-4 self-end w-full md:w-[85%]">
-        <div className="overflow-hidden bg-neutral-100 aspect-[16/10] relative group">
-          <img
-            src="https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=80"
-            alt={visionTranslations[language].caption2}
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-105"
-          />
-          <div className="absolute inset-0 bg-neutral-900/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
-        </div>
-        <div className="flex justify-end">
-          <p className="font-sans text-[10px] tracking-[0.25em] uppercase font-light text-neutral-400">
-            [ {visionTranslations[language].caption2} ]
-          </p>
-        </div>
-      </div>
-
-    </div>
-
-  </div>
-</section>
-
-{/* SECTION PRÉSENTATION DES 4 SERVICES / SPÉCIALISATIONS (GRILLE DOUBLE COLONNE SANS VIDE) */}
+{/* SECTION PRÉSENTATION DES 4 SERVICES / SPÉCIALISATIONS (GRILLE DOUBLE COLONNE DYNAMIQUE SANS VIDE) */}
 <section className="bg-[#FAF9F6] pt-12 pb-36 md:pb-52 px-6 lg:px-12 border-t border-neutral-200/40">
   <div className="max-w-7xl mx-auto">
     
-    {/* En-tête de section minimaliste */}
-    <div className="mb-20 md:mb-32 space-y-4 max-w-2xl">
-      <span className="font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block">
-        {servicesSectionTranslations[language].sectionTagline}
+    {/* En-tête de section minimaliste cliquable et éditable en direct */}
+    <div className="mb-20 md:mb-32 space-y-4 max-w-2xl text-left">
+      {/* Tagline éditable (Style global appliqué) */}
+      <span
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('services_tagline', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('services_tagline')}
+        style={getInlineStyle('services_tagline')} // Modifié pour être actif en continu !
+        className={`p-1.5 transition-all outline-none rounded-xs block ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'services_tagline' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('services_tagline', language === 'fr' ? 'value_fr' : 'value_en', servicesSectionTranslations[language].sectionTagline)}
       </span>
-      <h2 className="font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight">
-        {servicesSectionTranslations[language].sectionHeading}
+
+      {/* Titre Principal de section éditable (Style global appliqué) */}
+      <h2
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('services_heading', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('services_heading')}
+        style={getInlineStyle('services_heading')} // Modifié pour être actif en continu !
+        className={`p-2 transition-all outline-none rounded-xs block leading-tight ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'services_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('services_heading', language === 'fr' ? 'value_fr' : 'value_en', servicesSectionTranslations[language].sectionHeading)}
       </h2>
     </div>
 
-    {/* Séparation en 2 colonnes verticales indépendantes pour éviter les hauteurs de ligne forcées */}
-    {/* Séparation en 2 colonnes verticales indépendantes pour éviter les hauteurs de ligne forcées */}
+    {/* Séparation en 2 colonnes verticales indépendantes */}
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 lg:gap-x-20 gap-y-20 md:gap-y-0">
       
-      {/* COLONNE GAUCHE (Services 1 & 3) */}
+      {/* COLONNE GAUCHE (Services 1 & 3 - Index 0 & 2) */}
       <div className="flex flex-col space-y-20 md:space-y-28">
-        {[servicesSectionTranslations[language].services[0], servicesSectionTranslations[language].services[2]].map((service, idx) => (
-          <div key={service.num} className="flex flex-col space-y-6">
-            {/* Format d'image */}
-            <div className={`overflow-hidden bg-neutral-100 relative group cursor-pointer shadow-sm ${
-              idx === 0 ? 'aspect-[3/2]' : 'aspect-[3/4]'
-            }`}>
-              <img
-                src={service.imageUrl}
-                alt={service.title}
-                className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-102"
-              />
-              <div className="absolute inset-0 bg-neutral-900/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-            </div>
+        {[0, 2].map((originalIndex, idx) => {
+          const service = servicesSectionTranslations[language].services[originalIndex];
+          const titleKey = `service_title_${originalIndex}`;
+          const descKey = `service_desc_${originalIndex}`;
+          const imageKey = `grid_image_${originalIndex}`;
+          const isSelected = selectedKey === imageKey;
 
-            {/* Descriptif typographique ajusté */}
-            <div className="space-y-4 pt-3">
-              <div className="flex items-center space-x-4">
-                <span className="font-serif text-xl md:text-2xl italic font-light text-neutral-400/80">
-                  {service.num}
-                </span>
-                <span className="w-6 h-[1px] bg-neutral-300 block" /> {/* Trait d'union minimaliste */}
-                <h3 className="font-serif text-2xl md:text-3xl tracking-wide font-light text-neutral-800">
-                  {service.title}
-                </h3>
+          return (
+            <div key={service.num} className="flex flex-col space-y-6">
+              
+              {/* Image cliquable et modifiable en direct */}
+              <div 
+                onClick={() => {
+                  if (isEditing) {
+                    onSelectKey(imageKey);
+                    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                    fileInput?.click(); // Déclenche l'upload
+                  }
+                }}
+                className={`overflow-hidden bg-neutral-100 aspect-[3/2] relative group shadow-sm ${
+                  idx === 0 ? 'aspect-[3/2]' : 'aspect-[3/4]'
+                } ${isEditing ? 'cursor-pointer hover:brightness-95' : ''} ${
+                  isEditing && isSelected ? 'ring-4 ring-neutral-400 ring-inset' : ''
+                }`}
+              >
+                <img
+                  src={getContent(imageKey, 'value_fr', service.imageUrl)}
+                  alt={service.title}
+                  className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-102"
+                />
+                <div className="absolute inset-0 bg-neutral-900/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
               </div>
-              <p className="font-sans text-sm md:text-[15px] font-light text-neutral-500 leading-relaxed tracking-wide max-w-lg">
-                {service.description}
-              </p>
+
+              {/* Descriptif typographique ajustable */}
+              <div className="space-y-4 pt-3 text-left">
+                <div className="flex items-center space-x-4">
+                  <span className="font-serif text-xl md:text-2xl italic font-light text-neutral-400/80">
+                    {service.num}
+                  </span>
+                  <span className="w-6 h-[1px] bg-neutral-300 block" /> {/* Trait d'union minimaliste */}
+                  
+                  {/* Titre cliquable et éditable en direct (Style global appliqué) */}
+                  <h3
+                    contentEditable={isEditing}
+                    suppressContentEditableWarning={true}
+                    onBlur={(e) => onUpdateText(titleKey, e.currentTarget.innerText || '')}
+                    onClick={() => isEditing && onSelectKey(titleKey)}
+                    style={getInlineStyle(titleKey)} // Modifié pour être actif en continu !
+                    className={`transition-all outline-none rounded-xs whitespace-pre-wrap leading-tight ${
+                      isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+                    } ${isEditing && selectedKey === titleKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+                  >
+                    {getContent(titleKey, language === 'fr' ? 'value_fr' : 'value_en', service.title)}
+                  </h3>
+                </div>
+
+                {/* Description éditable en direct (Style global appliqué) */}
+                <p
+                  contentEditable={isEditing}
+                  suppressContentEditableWarning={true}
+                  onBlur={(e) => onUpdateText(descKey, e.currentTarget.innerText || '')}
+                  onClick={() => isEditing && onSelectKey(descKey)}
+                  style={getInlineStyle(descKey)} // Modifié pour être actif en continu !
+                  className={`font-sans text-sm md:text-[15px] font-light text-neutral-500 leading-relaxed tracking-wide max-w-lg transition-all outline-none rounded-xs whitespace-pre-wrap ${
+                    isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+                  } ${isEditing && selectedKey === descKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+                >
+                  {getContent(descKey, language === 'fr' ? 'value_fr' : 'value_en', service.description)}
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* COLONNE DROITE (Services 2 & 4 - Décalés légèrement vers le bas) */}
+      {/* COLONNE DROITE (Services 2 & 4 - Index 1 & 3) */}
       <div className="flex flex-col space-y-20 md:space-y-28 md:pt-20">
-        {[servicesSectionTranslations[language].services[1], servicesSectionTranslations[language].services[3]].map((service, idx) => (
-          <div key={service.num} className="flex flex-col space-y-6">
-            {/* Format d'image */}
-            <div className={`overflow-hidden bg-neutral-100 relative group cursor-pointer shadow-sm ${
-              idx === 0 ? 'aspect-[3/4]' : 'aspect-[3/2]'
-            }`}>
-              <img
-                src={service.imageUrl}
-                alt={service.title}
-                className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-102"
-              />
-              <div className="absolute inset-0 bg-neutral-900/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-            </div>
+        {[1, 3].map((originalIndex, idx) => {
+          const service = servicesSectionTranslations[language].services[originalIndex];
+          const titleKey = `service_title_${originalIndex}`;
+          const descKey = `service_desc_${originalIndex}`;
+          const imageKey = `grid_image_${originalIndex}`;
+          const isSelected = selectedKey === imageKey;
 
-            {/* Descriptif typographique ajusté */}
-            <div className="space-y-4 pt-3">
-              <div className="flex items-center space-x-4">
-                <span className="font-serif text-xl md:text-2xl italic font-light text-neutral-400/80">
-                  {service.num}
-                </span>
-                <span className="w-6 h-[1px] bg-neutral-300 block" /> {/* Trait d'union minimaliste */}
-                <h3 className="font-serif text-2xl md:text-3xl tracking-wide font-light text-neutral-800">
-                  {service.title}
-                </h3>
+          return (
+            <div key={service.num} className="flex flex-col space-y-6">
+              
+              {/* Image cliquable et modifiable en direct de manière autonome */}
+              <div 
+                onClick={() => {
+                  if (isEditing) {
+                    onSelectKey(imageKey);
+                    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                    fileInput?.click(); // Déclenche l'upload
+                  }
+                }}
+                className={`overflow-hidden bg-neutral-100 aspect-[3/4] relative group shadow-sm ${
+                  idx === 0 ? 'aspect-[3/4]' : 'aspect-[3/2]'
+                } ${isEditing ? 'cursor-pointer hover:brightness-95' : ''} ${
+                  isEditing && isSelected ? 'ring-4 ring-neutral-400 ring-inset' : ''
+                }`}
+              >
+                <img
+                  src={getContent(imageKey, 'value_fr', service.imageUrl)}
+                  alt={service.title}
+                  className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-102"
+                />
+                <div className="absolute inset-0 bg-neutral-900/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
               </div>
-              <p className="font-sans text-sm md:text-[15px] font-light text-neutral-500 leading-relaxed tracking-wide max-w-lg">
-                {service.description}
-              </p>
+
+              {/* Descriptif typographique ajustable */}
+              <div className="space-y-4 pt-3 text-left">
+                <div className="flex items-center space-x-4">
+                  <span className="font-serif text-xl md:text-2xl italic font-light text-neutral-400/80">
+                    {service.num}
+                  </span>
+                  <span className="w-6 h-[1px] bg-neutral-300 block" />
+                  
+                  {/* Titre cliquable et éditable en direct (Style global appliqué) */}
+                  <h3
+                    contentEditable={isEditing}
+                    suppressContentEditableWarning={true}
+                    onBlur={(e) => onUpdateText(titleKey, e.currentTarget.innerText || '')}
+                    onClick={() => isEditing && onSelectKey(titleKey)}
+                    style={getInlineStyle(titleKey)} // Modifié pour être actif en continu !
+                    className={`transition-all outline-none rounded-xs whitespace-pre-wrap leading-tight ${
+                      isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+                    } ${isEditing && selectedKey === titleKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+                  >
+                    {getContent(titleKey, language === 'fr' ? 'value_fr' : 'value_en', service.title)}
+                  </h3>
+                </div>
+
+                {/* Description éditable en direct (Style global appliqué) */}
+                <p
+                  contentEditable={isEditing}
+                  suppressContentEditableWarning={true}
+                  onBlur={(e) => onUpdateText(descKey, e.currentTarget.innerText || '')}
+                  onClick={() => isEditing && onSelectKey(descKey)}
+                  style={getInlineStyle(descKey)} // Modifié pour être actif en continu !
+                  className={`font-sans text-sm md:text-[15px] font-light text-neutral-500 leading-relaxed tracking-wide max-w-lg transition-all outline-none rounded-xs whitespace-pre-wrap ${
+                    isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+                  } ${isEditing && selectedKey === descKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+                >
+                  {getContent(descKey, language === 'fr' ? 'value_fr' : 'value_en', service.description)}
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
     </div>
@@ -1068,21 +1318,55 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
   </div>
 </section>
 
-{/* SECTION : TÉMOIGNAGES (CARROUSEL HORIZONTAL À NAVIGATION LATÉRALE ET OMBRES APPARENTES) */}
+{/* SECTION : TÉMOIGNAGES (CARROUSEL HORIZONTAL À NAVIGATION LATÉRALE ET OMBRES APPARENTES DYNAMIQUE) */}
 <section className="bg-[#FAF9F6] pt-0 pb-32 md:pb-44 px-4 md:px-6 relative border-t border-neutral-200/40">
   <div className="max-w-7xl mx-auto space-y-12">
     
-    {/* En-tête de section centré et minimaliste */}
+    {/* En-tête de section centré et minimaliste éditable en direct à l'écran */}
     <div className="text-center space-y-4 max-w-xl mx-auto pt-16">
-      <span className="font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block animate-fade-in">
-        {testimonialsTranslations[language].tagline}
+      
+      {/* Tagline éditable */}
+      <span
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('testimonials_tagline', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('testimonials_tagline')}
+        style={getInlineStyle('testimonials_tagline')}
+        className={`p-1.5 transition-all outline-none rounded-xs whitespace-pre-wrap block ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'testimonials_tagline' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('testimonials_tagline', language === 'fr' ? 'value_fr' : 'value_en', testimonialsTranslations[language].tagline)}
       </span>
-      <h2 className="font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight">
-        {testimonialsTranslations[language].heading}
+
+      {/* Titre Principal éditable */}
+      <h2
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('testimonials_heading', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('testimonials_heading')}
+        style={getInlineStyle('testimonials_heading')}
+        className={`p-2 transition-all outline-none rounded-xs whitespace-pre-wrap block leading-tight ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'testimonials_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('testimonials_heading', language === 'fr' ? 'value_fr' : 'value_en', testimonialsTranslations[language].heading)}
       </h2>
-      <p className="font-sans text-xs md:text-sm font-light text-neutral-500 tracking-wide max-w-sm mx-auto">
-        {testimonialsTranslations[language].subheading}
+
+      {/* Description d'en-tête éditable */}
+      <p
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('testimonials_subheading', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('testimonials_subheading')}
+        style={getInlineStyle('testimonials_subheading')}
+        className={`p-2 transition-all outline-none rounded-xs whitespace-pre-wrap block max-w-sm mx-auto text-neutral-500 text-xs md:text-sm tracking-wide ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'testimonials_subheading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('testimonials_subheading', language === 'fr' ? 'value_fr' : 'value_en', testimonialsTranslations[language].subheading)}
       </p>
+
       <div className="w-12 h-[1px] bg-neutral-300 mx-auto mt-6" />
     </div>
 
@@ -1116,34 +1400,72 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
           msOverflowStyle: 'none'
         }}
       >
-        {/* Masque la barre de défilement pour les navigateurs webkit */}
         <style dangerouslySetInnerHTML={{__html: `
           div::-webkit-scrollbar {
             display: none;
           }
         `}} />
 
-        {testimonialsTranslations[language].list.map((item, index) => (
-          <div 
-            key={index} 
-            className="w-[280px] md:w-[340px] lg:w-[calc(33.333%-1rem)] shrink-0 snap-start flex flex-col justify-between space-y-8 bg-white/60 backdrop-blur-xs p-6 md:p-8 border border-neutral-200/30 shadow-md"
-          >
-            {/* Texte du témoignage : Citation noire pure et de taille confortable (20px sur PC) */}
-            <p className="font-serif text-[17px] md:text-[20px] italic font-light leading-relaxed text-neutral-950">
-              {item.quote}
-            </p>
+        {testimonialsTranslations[language].list.map((item, index) => {
+          // Clés d'identifications dynamiques et indexées pour chaque avis, auteur et contexte
+          const quoteKey = `testimonial_quote_${index}`;
+          const authorKey = `testimonial_author_${index}`;
+          const contextKey = `testimonial_context_${index}`;
 
-            {/* Auteur & Contexte : Contrastes améliorés */}
-            <div className="space-y-2 pt-4 border-t border-neutral-200/30">
-              <h4 className="font-serif text-lg tracking-wide font-light text-neutral-900">
-                {item.author}
-              </h4>
-              <span className="font-sans text-[10px] md:text-xxs tracking-[0.25em] uppercase text-neutral-500 font-normal block">
-                {item.context}
-              </span>
+          return (
+            <div 
+              key={index} 
+              className="w-[280px] md:w-[340px] lg:w-[calc(33.333%-1rem)] shrink-0 snap-start flex flex-col justify-between space-y-8 bg-white/60 backdrop-blur-xs p-6 md:p-8 border border-neutral-200/30 shadow-md"
+            >
+              {/* Texte du témoignage cliquable et éditable en direct (Citation noire et très lisible) */}
+              <p
+                contentEditable={isEditing}
+                suppressContentEditableWarning={true}
+                onBlur={(e) => onUpdateText(quoteKey, e.currentTarget.innerText || '')}
+                onClick={() => isEditing && onSelectKey(quoteKey)}
+                style={getInlineStyle(quoteKey)}
+                className={`p-2 transition-all outline-none rounded-xs whitespace-pre-wrap italic leading-relaxed text-neutral-950 ${
+                  isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+                } ${isEditing && selectedKey === quoteKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+              >
+                {getContent(quoteKey, language === 'fr' ? 'value_fr' : 'value_en', item.quote)}
+              </p>
+
+              {/* Auteur & Contexte : Entièrement éditables au clic */}
+              <div className="space-y-2 pt-4 border-t border-neutral-200/30 text-left">
+                
+                {/* Nom de l'Auteur éditable */}
+                <h4
+                  contentEditable={isEditing}
+                  suppressContentEditableWarning={true}
+                  onBlur={(e) => onUpdateText(authorKey, e.currentTarget.innerText || '')}
+                  onClick={() => isEditing && onSelectKey(authorKey)}
+                  style={getInlineStyle(authorKey)}
+                  className={`p-1.5 transition-all outline-none rounded-xs whitespace-pre-wrap tracking-wide text-neutral-900 ${
+                    isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+                  } ${isEditing && selectedKey === authorKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+                >
+                  {getContent(authorKey, language === 'fr' ? 'value_fr' : 'value_en', item.author)}
+                </h4>
+
+                {/* Contexte / Lieu du shooting éditable */}
+                <span
+                  contentEditable={isEditing}
+                  suppressContentEditableWarning={true}
+                  onBlur={(e) => onUpdateText(contextKey, e.currentTarget.innerText || '')}
+                  onClick={() => isEditing && onSelectKey(contextKey)}
+                  style={getInlineStyle(contextKey)}
+                  className={`p-1 transition-all outline-none rounded-xs whitespace-pre-wrap font-sans text-[10px] md:text-xxs tracking-[0.25em] uppercase text-neutral-500 font-normal block ${
+                    isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+                  } ${isEditing && selectedKey === contextKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+                >
+                  {getContent(contextKey, language === 'fr' ? 'value_fr' : 'value_en', item.context)}
+                </span>
+                
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
     </div>
@@ -1151,16 +1473,23 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
   </div>
 </section>
 
-{/* SECTION : CALL TO ACTION (L'INVITATION SACRÉE SUR GRANDE PHOTO PANORAMIQUE) */}
+{/* SECTION : CALL TO ACTION (L'INVITATION SACRÉE DYNAMIQUE SUR GRANDE PHOTO PANORAMIQUE) */}
 <section className="relative h-[65vh] md:h-[75vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white">
   
-  {/* Grande image panoramique spirituelle et lumineuse en arrière-plan */}
+  {/* Grande image panoramique spirituelle en arrière-plan (Cliquable et modifiable de manière autonome) */}
   <div
-    className="absolute inset-0 transition-transform duration-[4000ms] ease-out group-hover:scale-105"
+    onClick={() => {
+      if (isEditing) {
+        onSelectKey('cta_bg_image');
+        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+        fileInput?.click(); // Déclenche l'upload local
+      }
+    }}
+    className={`absolute inset-0 transition-transform duration-[4000ms] ease-out group-hover:scale-105 bg-cover bg-center ${
+      isEditing ? 'cursor-pointer hover:brightness-90' : ''
+    } ${isEditing && selectedKey === 'cta_bg_image' ? 'ring-4 ring-white/40 ring-inset' : ''}`}
     style={{
-      backgroundImage: `url('https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80')`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
+      backgroundImage: `url(${getContent('cta_bg_image', 'value_fr', 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80')})`,
     }}
   />
 
@@ -1171,28 +1500,69 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
   {/* Contenu de l'invitation */}
   <div className="relative z-10 text-center max-w-3xl space-y-6 md:space-y-8 px-4">
     
-    {/* Tagline de taille plus confortable */}
-    <span className="font-sans text-xs md:text-sm tracking-[0.35em] uppercase font-light text-neutral-300 block animate-pulse">
-      {ctaSectionTranslations[language].tagline}
+    {/* Tagline éditable en direct */}
+    <span
+      contentEditable={isEditing}
+      suppressContentEditableWarning={true}
+      onBlur={(e) => onUpdateText('cta_tagline', e.currentTarget.innerText || '')}
+      onClick={() => isEditing && onSelectKey('cta_tagline')}
+      style={getInlineStyle('cta_tagline')}
+      className={`font-sans text-xs md:text-sm tracking-[0.35em] uppercase font-light text-neutral-300 block outline-none rounded-xs whitespace-pre-wrap ${
+        isEditing ? 'hover:bg-white/10 cursor-text animate-none' : 'animate-pulse'
+      } ${isEditing && selectedKey === 'cta_tagline' ? 'border border-dashed border-white bg-white/10' : ''}`}
+    >
+      {getContent('cta_tagline', language === 'fr' ? 'value_fr' : 'value_en', ctaSectionTranslations[language].tagline)}
     </span>
 
-    {/* Grand Titre artistique bien visible (Cormorant Garamond) */}
-    <h2 className="font-serif text-3xl md:text-5xl lg:text-6xl tracking-wide font-light leading-tight text-white">
-      {ctaSectionTranslations[language].heading}
+    {/* Grand Titre artistique bien visible (Cormorant Garamond) éditable */}
+    <h2
+      contentEditable={isEditing}
+      suppressContentEditableWarning={true}
+      onBlur={(e) => onUpdateText('cta_heading', e.currentTarget.innerText || '')}
+      onClick={() => isEditing && onSelectKey('cta_heading')}
+      style={getInlineStyle('cta_heading')}
+      className={`font-serif text-3xl md:text-5xl lg:text-6xl tracking-wide font-light leading-tight text-white outline-none rounded-xs whitespace-pre-wrap ${
+        isEditing ? 'hover:bg-white/10 cursor-text' : ''
+      } ${isEditing && selectedKey === 'cta_heading' ? 'border border-dashed border-white bg-white/10' : ''}`}
+    >
+      {getContent('cta_heading', language === 'fr' ? 'value_fr' : 'value_en', ctaSectionTranslations[language].heading)}
     </h2>
 
-    {/* Descriptif poétique agrandi à 16px (text-base) et contrasté (text-neutral-200) */}
-    <p className="font-sans text-sm md:text-base tracking-[0.12em] leading-relaxed font-light text-neutral-200 max-w-2xl mx-auto">
-      {ctaSectionTranslations[language].description}
+    {/* Descriptif poétique éditable */}
+    <p
+      contentEditable={isEditing}
+      suppressContentEditableWarning={true}
+      onBlur={(e) => onUpdateText('cta_description', e.currentTarget.innerText || '')}
+      onClick={() => isEditing && onSelectKey('cta_description')}
+      style={getInlineStyle('cta_description')}
+      className={`font-sans text-sm md:text-base tracking-[0.12em] leading-relaxed font-light text-neutral-200 max-w-2xl mx-auto outline-none rounded-xs whitespace-pre-wrap ${
+        isEditing ? 'hover:bg-white/10 cursor-text' : ''
+      } ${isEditing && selectedKey === 'cta_description' ? 'border border-dashed border-white bg-white/10' : ''}`}
+    >
+      {getContent('cta_description', language === 'fr' ? 'value_fr' : 'value_en', ctaSectionTranslations[language].description)}
     </p>
 
-    {/* Bouton d'action minimaliste et élégant */}
+    {/* Bouton d'action minimaliste et élégant (Texte du bouton éditable au clic) */}
     <div className="pt-4">
       <Link
         href="/contact"
+        onClick={(e) => {
+          if (isEditing) {
+            e.preventDefault(); // Évite la redirection de page lors de l'édition
+          }
+        }}
         className="bg-white/10 backdrop-blur-md border border-white/40 text-white text-[10px] md:text-xs uppercase tracking-[0.25em] font-light px-10 py-4 hover:bg-white hover:text-neutral-900 hover:border-white transition-all duration-500 inline-block rounded-none shadow-md cursor-pointer"
       >
-        {ctaSectionTranslations[language].buttonText}
+        <span
+          contentEditable={isEditing}
+          suppressContentEditableWarning={true}
+          onBlur={(e) => onUpdateText('cta_button_text', e.currentTarget.innerText || '')}
+          onClick={() => isEditing && onSelectKey('cta_button_text')}
+          style={getInlineStyle('cta_button_text')}
+          className={`outline-none whitespace-pre-wrap ${isEditing ? 'cursor-text' : ''}`}
+        >
+          {getContent('cta_button_text', language === 'fr' ? 'value_fr' : 'value_en', ctaSectionTranslations[language].buttonText)}
+        </span>
       </Link>
     </div>
 
@@ -1200,38 +1570,85 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
 </section>
 
 {/* SECTION : INTEGRATION INSTAGRAM MASONRY FOUITA (LARGEUR AJUSTÉE SANS VIDE) */}
-{/* SECTION : INTEGRATION INSTAGRAM MASONRY FOUITA (LARGEUR AJUSTÉE SANS VIDE) */}
+{/* SECTION : INTEGRATION INSTAGRAM MASONRY FOUITA DYNAMIQUE (LARGEUR AJUSTÉE SANS VIDE) */}
 <section className="bg-[#FAF9F6] pt-12 pb-8 md:pb-12 px-4 md:px-8 border-t border-neutral-200/40">
   <div className="w-full space-y-16">
     
-    {/* En-tête de section avec votre nom de compte IG mis en valeur */}
+    {/* En-tête de section avec votre nom de compte IG mis en valeur et éditable */}
     <div className="text-center space-y-4 max-w-xl mx-auto">
-      <span className="font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block">
-        {instagramSectionTranslations[language].tagline}
+      
+      {/* Tagline éditable */}
+      <span
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('instagram_tagline', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('instagram_tagline')}
+        style={getInlineStyle('instagram_tagline')}
+        className={`font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block outline-none rounded-xs whitespace-pre-wrap ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'instagram_tagline' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('instagram_tagline', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].tagline)}
       </span>
-      <h2 className="font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight">
-        {instagramSectionTranslations[language].heading}
+
+      {/* Titre de section éditable */}
+      <h2
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('instagram_heading', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('instagram_heading')}
+        style={getInlineStyle('instagram_heading')}
+        className={`font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'instagram_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('instagram_heading', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].heading)}
       </h2>
       
-      {/* Votre lien de compte Instagram artistique */}
+      {/* Votre lien de compte Instagram artistique éditable en direct */}
       <div className="pt-2">
         <a 
           href="https://www.instagram.com/animaelumen" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="font-serif text-xl md:text-2xl italic font-light text-neutral-600 hover:text-neutral-900 transition-colors duration-300 underline underline-offset-8"
+          onClick={(e) => {
+            if (isEditing) {
+              e.preventDefault(); // Évite la redirection lors du clic en mode édition
+              onSelectKey('instagram_handle');
+            }
+          }}
+          className="font-serif text-xl md:text-2xl italic font-light text-neutral-600 hover:text-neutral-900 transition-colors duration-300 underline underline-offset-8 inline-block"
         >
-          @animaelumen
+          <span
+            contentEditable={isEditing}
+            suppressContentEditableWarning={true}
+            onBlur={(e) => onUpdateText('instagram_handle', e.currentTarget.innerText || '')}
+            style={getInlineStyle('instagram_handle')}
+            className={`outline-none whitespace-pre-wrap ${isEditing ? 'cursor-text' : ''}`}
+          >
+            {getContent('instagram_handle', 'value_fr', '@animaelumen')}
+          </span>
         </a>
       </div>
 
-      <p className="font-sans text-xs md:text-sm font-light text-neutral-500 tracking-wide max-w-xs mx-auto pt-4">
-        {instagramSectionTranslations[language].subheading}
+      {/* Paragraphe descriptif éditable sous le lien */}
+      <p
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('instagram_subheading', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('instagram_subheading')}
+        style={getInlineStyle('instagram_subheading')}
+        className={`font-sans text-xs md:text-sm font-light text-neutral-500 tracking-wide max-w-xs mx-auto pt-4 outline-none rounded-xs whitespace-pre-wrap block ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'instagram_subheading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('instagram_subheading', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].subheading)}
       </p>
+      
       <div className="w-12 h-[1px] bg-neutral-300 mx-auto mt-6" />
     </div>
 
-    {/* CONTAINER AJUSTÉ À 1440px (max-w-[90rem]) ET HAUTEUR AUTOMATIQUE SANS ESPACE VIDE */}
+    {/* CONTAINER AJUSTÉ À 1440px ET HAUTEUR AUTOMATIQUE SANS ESPACE VIDE */}
     <div className="max-w-[90rem] mx-auto w-full px-2 md:px-6">
       <div className="w-full h-auto">
         
@@ -1242,7 +1659,7 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
           id="ftuaxm8l1"
         />
 
-        {/* Chargement dynamique et sécurisé du script d'intégration Fouita */}
+        {/* Script d'intégration Fouita */}
         <Script 
           src="https://wdg.fouita.com/widgets/0x48d497.js"
           strategy="lazyOnload"
@@ -1251,15 +1668,29 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
       </div>
     </div>
 
-    {/* Bouton d'invitation à s'abonner (Qui se place désormais parfaitement sous la grille) */}
+    {/* Bouton d'invitation à s'abonner (Texte du bouton éditable au clic) */}
     <div className="text-center pt-4">
       <a
         href="https://www.instagram.com/animaelumen"
         target="_blank"
         rel="noopener noreferrer"
+        onClick={(e) => {
+          if (isEditing) {
+            e.preventDefault(); // Évite la redirection en mode édition
+            onSelectKey('instagram_button_text');
+          }
+        }}
         className="text-[10px] md:text-xs uppercase tracking-[0.25em] font-light text-neutral-800 border border-neutral-800/30 px-8 py-3.5 hover:bg-neutral-800 hover:text-white hover:border-neutral-800 transition-all duration-500 inline-block rounded-none cursor-pointer"
       >
-        {instagramSectionTranslations[language].buttonText}
+        <span
+          contentEditable={isEditing}
+          suppressContentEditableWarning={true}
+          onBlur={(e) => onUpdateText('instagram_button_text', e.currentTarget.innerText || '')}
+          style={getInlineStyle('instagram_button_text')}
+          className={`outline-none whitespace-pre-wrap ${isEditing ? 'cursor-text' : ''}`}
+        >
+          {getContent('instagram_button_text', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].buttonText)}
+        </span>
       </a>
     </div>
 
