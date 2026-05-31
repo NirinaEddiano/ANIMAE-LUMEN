@@ -1,8 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react'; 
 import { useLanguage } from '@/context/LanguageContext';
 import Link from 'next/link';
 import Script from 'next/script';
+import { supabase } from '@/lib/supabase';
 
 // 1. Traductions de la section Hero d'À Propos
 const aboutHeroTranslations = {
@@ -135,22 +137,75 @@ const instagramSectionTranslations = {
   }
 };
 
-export default function AboutPage() {
+export default function AboutPage({ 
+  isEditing = false, 
+  selectedKey = null, 
+  onSelectKey = () => {}, 
+  onUpdateText = () => {},
+  dbContent = [] 
+}: { 
+  isEditing?: boolean; 
+  selectedKey?: string | null; 
+  onSelectKey?: (key: string) => void; 
+  onUpdateText?: (key: string, value: string) => void;
+  dbContent?: any[];
+}) {
   const { language } = useLanguage();
+
+  // --- CHARGEMENT DYNAMIQUE DES TEXTES & STYLES ---
+  const [localDbContent, setLocalDbContent] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (isEditing) return; // En mode admin, les données viennent déjà du panneau admin
+    const fetchContent = async () => {
+      const { data } = await supabase.from('site_content').select('*');
+      if (data) setLocalDbContent(data);
+    };
+    fetchContent();
+  }, [isEditing]);
+
+  const activeContent = isEditing ? dbContent : localDbContent;
+
+  // CORRIGÉ : Ajout du type (i: any) pour rassurer le compilateur TypeScript
+  const getContent = (key: string, field: 'value_fr' | 'value_en', defaultValue: string) => {
+    const item = activeContent.find((i: any) => i.key === key);
+    return item ? item[field] : defaultValue;
+  };
+
+  // CORRIGÉ : Ajout du type (i: any) pour rassurer le compilateur TypeScript
+  const getInlineStyle = (key: string) => {
+    const item = activeContent.find((i: any) => i.key === key);
+    if (!item) return {};
+    return {
+      fontFamily: item.font_family,
+      fontSize: item.font_size,
+      fontWeight: item.is_bold ? 'bold' : 'light' as const,
+    };
+  };
+  // ----------------------------------------------------
+
   const t = aboutHeroTranslations[language];
 
   return (
     <main className="min-h-screen bg-[#FAF9F6]">
       
-      {/* SECTION HERO : Format contenu et apaisant (Hauteur réduite) */}
+      {/* SECTION HERO : Format contenu et apaisant (Hauteur réduite & Édition en direct active) */}
       <section className="relative h-[50vh] md:h-[58vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white">
         
-        {/* Image de fond brumeuse, propice à l'introspection */}
+        {/* Image de fond brumeuse cliquable et modifiable en direct */}
         <div
-          className="absolute inset-0 bg-cover bg-center"
+          onClick={() => {
+            if (isEditing) {
+              onSelectKey('about_hero_image');
+              const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+              fileInput?.click(); // Déclenche l'upload local
+            }
+          }}
+          className={`absolute inset-0 bg-cover bg-center ${
+            isEditing ? 'cursor-pointer hover:brightness-90' : ''
+          } ${isEditing && selectedKey === 'about_hero_image' ? 'ring-4 ring-white/40 ring-inset' : ''}`}
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1600&q=80')`,
-            backgroundPosition: 'center',
+            backgroundImage: `url(${getContent('about_hero_image', 'value_fr', 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1600&q=80')})`,
           }}
         />
 
@@ -161,90 +216,195 @@ export default function AboutPage() {
         {/* Contenu textuel centré et épuré */}
         <div className="relative z-10 text-center max-w-3xl space-y-4 md:space-y-6 px-4 pt-12 md:pt-16">
           
-          {/* Tagline fine */}
-          <span className="font-sans text-[10px] md:text-xs tracking-[0.35em] uppercase font-light text-neutral-300 block">
-            {t.tagline}
+          {/* Tagline fine éditable */}
+          <span
+            contentEditable={isEditing}
+            suppressContentEditableWarning={true}
+            onBlur={(e) => onUpdateText('about_hero_tagline', e.currentTarget.innerText || '')}
+            onClick={() => isEditing && onSelectKey('about_hero_tagline')}
+            style={getInlineStyle('about_hero_tagline')}
+            className={`font-sans text-[10px] md:text-xs tracking-[0.35em] uppercase font-light text-neutral-300 block outline-none rounded-xs whitespace-pre-wrap ${
+              isEditing ? 'hover:bg-white/10 cursor-text' : ''
+            } ${isEditing && selectedKey === 'about_hero_tagline' ? 'border border-dashed border-white bg-white/10' : ''}`}
+          >
+            {getContent('about_hero_tagline', language === 'fr' ? 'value_fr' : 'value_en', t.tagline)}
           </span>
 
-          {/* Grand Titre (Cormorant Garamond) */}
-          <h1 className="font-serif text-3xl md:text-5xl lg:text-6xl tracking-wide font-light leading-tight text-white">
-            {t.heading}
+          {/* Grand Titre (Cormorant Garamond) éditable */}
+          <h1
+            contentEditable={isEditing}
+            suppressContentEditableWarning={true}
+            onBlur={(e) => onUpdateText('about_hero_heading', e.currentTarget.innerText || '')}
+            onClick={() => isEditing && onSelectKey('about_hero_heading')}
+            style={getInlineStyle('about_hero_heading')}
+            className={`font-serif text-3xl md:text-5xl lg:text-6xl tracking-wide font-light leading-tight text-white outline-none rounded-xs whitespace-pre-wrap ${
+              isEditing ? 'hover:bg-white/10 cursor-text' : ''
+            } ${isEditing && selectedKey === 'about_hero_heading' ? 'border border-dashed border-white bg-white/10' : ''}`}
+          >
+            {getContent('about_hero_heading', language === 'fr' ? 'value_fr' : 'value_en', t.heading)}
           </h1>
 
-          {/* Sous-titre descriptif */}
-          <p className="font-sans text-xs md:text-sm tracking-[0.12em] leading-relaxed font-light text-neutral-200 max-w-xl mx-auto">
-            {t.subheading}
+          {/* Sous-titre descriptif éditable */}
+          <p
+            contentEditable={isEditing}
+            suppressContentEditableWarning={true}
+            onBlur={(e) => onUpdateText('about_hero_subheading', e.currentTarget.innerText || '')}
+            onClick={() => isEditing && onSelectKey('about_hero_subheading')}
+            style={getInlineStyle('about_hero_subheading')}
+            className={`font-sans text-xs md:text-sm tracking-[0.12em] leading-relaxed font-light text-neutral-200 max-w-xl mx-auto outline-none rounded-xs whitespace-pre-wrap ${
+              isEditing ? 'hover:bg-white/10 cursor-text' : ''
+            } ${isEditing && selectedKey === 'about_hero_subheading' ? 'border border-dashed border-white bg-white/10' : ''}`}
+          >
+            {getContent('about_hero_subheading', language === 'fr' ? 'value_fr' : 'value_en', t.subheading)}
           </p>
 
         </div>
 
       </section>
 
-      {/* SECTION : L'ESSENCE DE L'INSTANT (COLLAGE EFFET TIRAGES ÉPARPILLÉS SUR UNE TABLE & TEXTE RICHE) */}
+     {/* SECTION : L'ESSENCE DE L'INSTANT (COLLAGE EFFET TIRAGES ÉPARPILLÉS SUR UNE TABLE & TEXTE RICHE DÉTAILLÉ) */}
 <section className="bg-[#FAF9F6] py-20 md:py-32 px-6 lg:px-12 text-neutral-950 border-t border-neutral-200/40">
   <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-24 items-center">
     
-    {/* COLONNE GAUCHE (6/12) : 7 tirages photo d'art éparpillés et superposés sans vide (Hauteur 580px) */}
+    {/* COLONNE GAUCHE (6/12) : 7 tirages photo d'art éparpillés, superposés et éditables un à un de manière autonome */}
     <div className="lg:col-span-6 relative w-full h-[450px] md:h-[580px] select-none">
       
-      {/* Photo 1 (Portrait d'âme central gauche) : z-index élevé, incliné à gauche */}
-      <div className="absolute top-12 left-0 w-[44%] aspect-[3/4] overflow-hidden shadow-md z-30 -rotate-3 hover:rotate-0  transition-all duration-500 cursor-pointer">
+      {/* Photo 1 (Portrait d'âme central gauche) - Inclinaison gauche */}
+      <div 
+        onClick={() => {
+          if (isEditing) {
+            onSelectKey('about_image_0');
+            // Ouvre l'explorateur local de manière autonome sans avoir besoin de référence React
+            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+            fileInput?.click();
+          }
+        }}
+        className={`absolute top-12 left-0 w-[44%] aspect-[3/4] overflow-hidden shadow-md -rotate-3 hover:rotate-0 hover:z-40 transition-all duration-500 cursor-pointer ${
+          isEditing && selectedKey === 'about_image_0' ? 'z-40 ring-4 ring-neutral-400 ring-inset' : 'z-30'
+        }`}
+      >
         <img
-          src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80"
+          src={getContent('about_image_0', 'value_fr', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80')}
           alt="Portrait d'âme"
           className="w-full h-full object-cover"
         />
       </div>
 
-      {/* Photo 2 (Cérémonie/Mariage bas droit) : z-index moyen, incliné à droite */}
-      <div className="absolute bottom-6 right-0 w-[55%] aspect-[3/2] overflow-hidden shadow-lg z-25 rotate-3 hover:rotate-0  transition-all duration-500 cursor-pointer">
+      {/* Photo 2 (Cérémonie/Mariage bas droit) - Inclinaison droite */}
+      <div 
+        onClick={() => {
+          if (isEditing) {
+            onSelectKey('about_image_1');
+            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+            fileInput?.click();
+          }
+        }}
+        className={`absolute bottom-6 right-0 w-[55%] aspect-[3/2] overflow-hidden shadow-lg rotate-3 hover:rotate-0 hover:z-40 transition-all duration-500 cursor-pointer ${
+          isEditing && selectedKey === 'about_image_1' ? 'z-40 ring-4 ring-neutral-400 ring-inset' : 'z-25'
+        }`}
+      >
         <img
-          src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80"
+          src={getContent('about_image_1', 'value_fr', 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80')}
           alt="Détail rituel"
           className="w-full h-full object-cover"
         />
       </div>
 
-      {/* Photo 3 (Vague de mer calme, carré) : en arrière-plan au centre, très incliné */}
-      <div className="absolute top-45 left-[35%] w-[33%] aspect-[1/1] overflow-hidden opacity-75 shadow-xs z-10 -rotate-6 hover:rotate-0  transition-all duration-500 cursor-pointer">
+      {/* Photo 3 (Vague de mer calme, carré) - Inclinaison gauche */}
+      <div 
+        onClick={() => {
+          if (isEditing) {
+            onSelectKey('about_image_2');
+            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+            fileInput?.click();
+          }
+        }}
+        className={`absolute top-45 left-[35%] w-[33%] aspect-[1/1] overflow-hidden opacity-75 shadow-xs -rotate-6 hover:rotate-0 hover:z-40 transition-all duration-500 cursor-pointer ${
+          isEditing && selectedKey === 'about_image_2' ? 'z-40 opacity-100 ring-4 ring-neutral-400 ring-inset' : 'z-10'
+        }`}
+      >
         <img
-          src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80"
+          src={getContent('about_image_2', 'value_fr', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80')}
           alt="Calme océan"
           className="w-full h-full object-cover filter grayscale contrast-110"
         />
       </div>
 
-      {/* Photo 4 (Nature/Collines vertes, bas gauche) : z-index moyen, incliné à droite */}
-      <div className="absolute bottom-2 left-6 w-[39%] aspect-[3/4] overflow-hidden shadow-md z-20 rotate-6 hover:rotate-0  transition-all duration-500 cursor-pointer">
+      {/* Photo 4 (Nature/Collines vertes, bas gauche) - Inclinaison droite */}
+      <div 
+        onClick={() => {
+          if (isEditing) {
+            onSelectKey('about_image_3');
+            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+            fileInput?.click();
+          }
+        }}
+        className={`absolute bottom-2 left-6 w-[39%] aspect-[3/4] overflow-hidden shadow-md rotate-6 hover:rotate-0 hover:z-40 transition-all duration-500 cursor-pointer ${
+          isEditing && selectedKey === 'about_image_3' ? 'z-40 ring-4 ring-neutral-400 ring-inset' : 'z-20'
+        }`}
+      >
         <img
-          src="https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=600&q=80"
+          src={getContent('about_image_3', 'value_fr', 'https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=600&q=80')}
           alt="Nature sauvage"
           className="w-full h-full object-cover"
         />
       </div>
 
-      {/* Photo 5 (Fumée d'encens et mains rituelles, haut droit) : z-index élevé, incliné à gauche */}
-      <div className="absolute top-4 right-2 w-[46%] aspect-[3/2] overflow-hidden shadow-md z-30 -rotate-2 hover:rotate-0  transition-all duration-500 cursor-pointer">
+      {/* Photo 5 (Fumée d'encens et mains rituelles, haut droit) - Inclinaison gauche */}
+      <div 
+        onClick={() => {
+          if (isEditing) {
+            onSelectKey('about_image_4');
+            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+            fileInput?.click();
+          }
+        }}
+        className={`absolute top-4 right-2 w-[46%] aspect-[3/2] overflow-hidden shadow-md -rotate-2 hover:rotate-0 hover:z-40 transition-all duration-500 cursor-pointer ${
+          isEditing && selectedKey === 'about_image_4' ? 'z-40 ring-4 ring-neutral-400 ring-inset' : 'z-30'
+        }`}
+      >
         <img
-          src="https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=600&q=80"
+          src={getContent('about_image_4', 'value_fr', 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=600&q=80')}
           alt="Fumée sacrée"
           className="w-full h-full object-cover"
         />
       </div>
 
-      {/* Photo 6 (NOUVELLE - Sororité, cercle blanc central droit pour combler le vide du milieu) */}
-      <div className="absolute top-[30%] right-2 w-[52%] aspect-[3/2] overflow-hidden shadow-sm z-15 -rotate-1 hover:rotate-0  transition-all duration-500 cursor-pointer">
+      {/* Photo 6 (Sororité, cercle blanc central droit) - Inclinaison gauche */}
+      <div 
+        onClick={() => {
+          if (isEditing) {
+            onSelectKey('about_image_5');
+            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+            fileInput?.click();
+          }
+        }}
+        className={`absolute top-[30%] right-2 w-[52%] aspect-[3/2] overflow-hidden shadow-sm -rotate-1 hover:rotate-0 hover:z-40 transition-all duration-500 cursor-pointer ${
+          isEditing && selectedKey === 'about_image_5' ? 'z-40 ring-4 ring-neutral-400 ring-inset' : 'z-15'
+        }`}
+      >
         <img
-          src="https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&w=600&q=80"
+          src={getContent('about_image_5', 'value_fr', 'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&w=600&q=80')}
           alt="Sororité sacrée"
           className="w-full h-full object-cover"
         />
       </div>
 
-      {/* Photo 7 (NOUVELLE - Portrait intime en noir et blanc, en haut à gauche/milieu) */}
-      <div className="absolute top-[-10%] left-[30%] w-[32%] aspect-[3/4] overflow-hidden shadow-xs z-10 rotate-6 hover:rotate-0  transition-all duration-500 cursor-pointer">
+      {/* Photo 7 (Portrait intime en noir et blanc, en haut à gauche/milieu) - Inclinaison droite */}
+      <div 
+        onClick={() => {
+          if (isEditing) {
+            onSelectKey('about_image_6');
+            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+            fileInput?.click();
+          }
+        }}
+        className={`absolute top-[-10%] left-[30%] w-[32%] aspect-[3/4] overflow-hidden shadow-xs rotate-6 hover:rotate-0 hover:z-40 transition-all duration-500 cursor-pointer ${
+          isEditing && selectedKey === 'about_image_6' ? 'z-40 opacity-100 ring-4 ring-neutral-400 ring-inset' : 'z-10'
+        }`}
+      >
         <img
-          src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80"
+          src={getContent('about_image_6', 'value_fr', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80')}
           alt="Portrait intime"
           className="w-full h-full object-cover filter grayscale contrast-110"
         />
@@ -252,33 +412,95 @@ export default function AboutPage() {
 
     </div>
 
-    {/* COLONNE DROITE (6/12) : Vos textes détaillés d'origine (inchangés) */}
-    <div className="lg:col-span-6 space-y-6 lg:pl-4">
-      <span className="font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block">
-        {aboutVisionTranslations[language].tagline}
+    {/* COLONNE DROITE (6/12) : Textes descriptifs d'origine éditables en direct */}
+    <div className="lg:col-span-6 space-y-6 lg:pl-4 text-left">
+      {/* Tagline de section */}
+      <span
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('about_tagline', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('about_tagline')}
+        style={getInlineStyle('about_tagline')}
+        className={`p-1.5 transition-all outline-none rounded-xs whitespace-pre-wrap block ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'about_tagline' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('about_tagline', language === 'fr' ? 'value_fr' : 'value_en', aboutVisionTranslations[language].tagline)}
       </span>
-      <h2 className="font-serif text-3xl md:text-4xl tracking-wide font-light text-neutral-900 leading-tight">
-        {aboutVisionTranslations[language].heading}
+
+      {/* Titre principal de section */}
+      <h2
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('about_heading', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('about_heading')}
+        style={getInlineStyle('about_heading')}
+        className={`p-2 transition-all outline-none rounded-xs whitespace-pre-wrap block leading-tight ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'about_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('about_heading', language === 'fr' ? 'value_fr' : 'value_en', aboutVisionTranslations[language].heading)}
       </h2>
-      <p className="font-serif text-lg md:text-xl italic font-light leading-relaxed text-neutral-800">
-        {aboutVisionTranslations[language].subtitle}
+
+      {/* Sous-titre */}
+      <p
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('about_subtitle', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('about_subtitle')}
+        style={getInlineStyle('about_subtitle')}
+        className={`p-2 transition-all outline-none rounded-xs whitespace-pre-wrap block leading-relaxed ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'about_subtitle' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('about_subtitle', language === 'fr' ? 'value_fr' : 'value_en', aboutVisionTranslations[language].subtitle)}
       </p>
+
       <div className="w-12 h-[1px] bg-neutral-300" />
       
-      {/* Vos paragraphes descriptifs d'origine */}
+      {/* 3 longs paragraphes éditables à l'écran */}
       <div className="space-y-5 font-sans text-sm md:text-base font-light text-neutral-600 leading-relaxed tracking-wide">
-        <p>
-          {aboutVisionTranslations[language].paragraph1}
+        <p
+          contentEditable={isEditing}
+          suppressContentEditableWarning={true}
+          onBlur={(e) => onUpdateText('about_paragraph_1', e.currentTarget.innerText || '')}
+          onClick={() => isEditing && onSelectKey('about_paragraph_1')}
+          style={getInlineStyle('about_paragraph_1')}
+          className={`p-2 transition-all outline-none rounded-xs whitespace-pre-wrap block ${
+            isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+          } ${isEditing && selectedKey === 'about_paragraph_1' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+        >
+          {getContent('about_paragraph_1', language === 'fr' ? 'value_fr' : 'value_en', aboutVisionTranslations[language].paragraph1)}
         </p>
-        <p>
-          {aboutVisionTranslations[language].paragraph2}
+
+        <p
+          contentEditable={isEditing}
+          suppressContentEditableWarning={true}
+          onBlur={(e) => onUpdateText('about_paragraph_2', e.currentTarget.innerText || '')}
+          onClick={() => isEditing && onSelectKey('about_paragraph_2')}
+          style={getInlineStyle('about_paragraph_2')}
+          className={`p-2 transition-all outline-none rounded-xs whitespace-pre-wrap block ${
+            isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+          } ${isEditing && selectedKey === 'about_paragraph_2' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+        >
+          {getContent('about_paragraph_2', language === 'fr' ? 'value_fr' : 'value_en', aboutVisionTranslations[language].paragraph2)}
         </p>
-        <p>
-          {aboutVisionTranslations[language].paragraph3}
+
+        <p
+          contentEditable={isEditing}
+          suppressContentEditableWarning={true}
+          onBlur={(e) => onUpdateText('about_paragraph_3', e.currentTarget.innerText || '')}
+          onClick={() => isEditing && onSelectKey('about_paragraph_3')}
+          style={getInlineStyle('about_paragraph_3')}
+          className={`p-2 transition-all outline-none rounded-xs whitespace-pre-wrap block ${
+            isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+          } ${isEditing && selectedKey === 'about_paragraph_3' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+        >
+          {getContent('about_paragraph_3', language === 'fr' ? 'value_fr' : 'value_en', aboutVisionTranslations[language].paragraph3)}
         </p>
       </div>
 
-      {/* Bouton de redirection vers la page portfolio */}
+      {/* Bouton de redirection d'origine */}
       <div className="pt-4">
         <Link
           href="/portfolio"
@@ -292,47 +514,112 @@ export default function AboutPage() {
   </div>
 </section>
 
-{/* SECTION : L'EXPÉRIENCE DE L'ESPACE SACRÉ (COMPOSITION DUO ÉPURÉE & TEXTE) */}
+{/* SECTION : L'EXPÉRIENCE DE L'ESPACE SACRÉ (COMPOSITION DUO ÉPURÉE & TEXTE DYNAMIQUE) */}
 <section className="bg-[#FAF9F6] pt-12 pb-32 md:pb-44 px-6 lg:px-12 text-neutral-950 border-t border-neutral-200/40">
   <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-24 items-center">
     
-    {/* COLONNE GAUCHE (5/12) : Explication de la démarche rituelle */}
+    {/* COLONNE GAUCHE (5/12) : Explication de la démarche rituelle éditable */}
     <div className="lg:col-span-5 space-y-6">
-      <span className="font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block">
-        {aboutExperienceTranslations[language].tagline}
+      
+      {/* Tagline de section éditable */}
+      <span
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('experience_tagline', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('experience_tagline')}
+        style={getInlineStyle('experience_tagline')}
+        className={`font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block outline-none rounded-xs whitespace-pre-wrap ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'experience_tagline' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('experience_tagline', language === 'fr' ? 'value_fr' : 'value_en', aboutExperienceTranslations[language].tagline)}
       </span>
-      <h2 className="font-serif text-3xl md:text-4xl tracking-wide font-light text-neutral-900 leading-tight">
-        {aboutExperienceTranslations[language].heading}
+
+      {/* Titre Principal de section éditable */}
+      <h2
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('experience_heading', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('experience_heading')}
+        style={getInlineStyle('experience_heading')}
+        className={`font-serif text-3xl md:text-4xl tracking-wide font-light text-neutral-900 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'experience_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('experience_heading', language === 'fr' ? 'value_fr' : 'value_en', aboutExperienceTranslations[language].heading)}
       </h2>
+
       <div className="w-12 h-[1px] bg-neutral-300" />
       
-      <div className="space-y-5 font-sans text-sm md:text-base font-light text-neutral-600 leading-relaxed tracking-wide">
-        <p className="font-medium text-neutral-800">
-          {aboutExperienceTranslations[language].description1}
+      {/* Paragraphes explicatifs éditables */}
+      <div className="space-y-5 font-sans text-sm md:text-base font-light text-neutral-600 leading-relaxed tracking-wide text-left">
+        <p
+          contentEditable={isEditing}
+          suppressContentEditableWarning={true}
+          onBlur={(e) => onUpdateText('experience_desc1', e.currentTarget.innerText || '')}
+          onClick={() => isEditing && onSelectKey('experience_desc1')}
+          style={getInlineStyle('experience_desc1')}
+          className={`font-medium text-neutral-800 outline-none rounded-xs whitespace-pre-wrap ${
+            isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+          } ${isEditing && selectedKey === 'experience_desc1' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+        >
+          {getContent('experience_desc1', language === 'fr' ? 'value_fr' : 'value_en', aboutExperienceTranslations[language].description1)}
         </p>
-        <p>
-          {aboutExperienceTranslations[language].description2}
+
+        <p
+          contentEditable={isEditing}
+          suppressContentEditableWarning={true}
+          onBlur={(e) => onUpdateText('experience_desc2', e.currentTarget.innerText || '')}
+          onClick={() => isEditing && onSelectKey('experience_desc2')}
+          style={getInlineStyle('experience_desc2')}
+          className={`font-sans text-sm md:text-base font-light text-neutral-600 leading-relaxed tracking-wide outline-none rounded-xs whitespace-pre-wrap block ${
+            isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+          } ${isEditing && selectedKey === 'experience_desc2' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+        >
+          {getContent('experience_desc2', language === 'fr' ? 'value_fr' : 'value_en', aboutExperienceTranslations[language].description2)}
         </p>
       </div>
     </div>
 
-    {/* COLONNE DROITE (7/12) : Composition de 2 images d'art asymétriques superposées */}
+    {/* COLONNE DROITE (7/12) : Composition de 2 images d'art asymétriques superposées et éditables */}
     <div className="lg:col-span-7 relative w-full flex items-center justify-center py-8">
       
       {/* Photo Principale (Grand format vertical, lever de soleil brumeux) */}
-      <div className="w-[62%] aspect-[3/4] overflow-hidden shadow-sm z-10 relative">
+      <div 
+        onClick={() => {
+          if (isEditing) {
+            onSelectKey('experience_image_1');
+            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+            fileInput?.click(); // Déclenche l'upload local
+          }
+        }}
+        className={`overflow-hidden aspect-[3/4] relative shadow-sm ${
+          isEditing ? 'cursor-pointer hover:brightness-95' : ''
+        } ${isEditing && selectedKey === 'experience_image_1' ? 'z-30 ring-4 ring-neutral-400 ring-inset w-[62%]' : 'z-10 w-[62%]'}`}
+      >
         <img
-          src="https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?auto=format&fit=crop&w=800&q=80"
+          src={getContent('experience_image_1', 'value_fr', 'https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?auto=format&fit=crop&w=800&q=80')}
           alt="Matin calme et brume sacrée"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-neutral-900/5 pointer-events-none" />
       </div>
 
-      {/* Photo Secondaire (Format carré, rituels de partage et de terre) */}
-      <div className="w-[42%] aspect-[1/1] overflow-hidden shadow-lg z-20 absolute bottom-[-10px] right-4 md:right-8 transition-transform duration-700 hover:scale-102">
+      {/* Photo Secondaire (Format carré rituels, vient chevaucher doucement) */}
+      <div 
+        onClick={() => {
+          if (isEditing) {
+            onSelectKey('experience_image_2');
+            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+            fileInput?.click();
+          }
+        }}
+        className={`overflow-hidden shadow-lg absolute bottom-[-10px] right-4 md:right-8 transition-all duration-700 ${
+          isEditing ? 'cursor-pointer hover:brightness-95' : 'hover:scale-102'
+        } ${isEditing && selectedKey === 'experience_image_2' ? 'z-40 ring-4 ring-neutral-400 ring-inset w-[42%] aspect-[1/1]' : 'z-20 w-[42%] aspect-[1/1]'}`}
+      >
         <img
-          src="https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=600&q=80"
+          src={getContent('experience_image_2', 'value_fr', 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=600&q=80')}
           alt="Connexion sacrée à la terre"
           className="w-full h-full object-cover"
         />
@@ -344,70 +631,154 @@ export default function AboutPage() {
   </div>
 </section>
 
-{/* SECTION : LES OUTILS DE L'INVISIBLE (CADRE MARIE-LOUISE AVEC GAP LATÉRAL) */}
+{/* SECTION : LES OUTILS DE L'INVISIBLE (CADRE MARIE-LOUISE AVEC GAP LATÉRAL DYNAMIQUE) */}
 <section className="bg-[#FAF9F6] pt-12 pb-32 md:pb-44 px-6 lg:px-12 text-neutral-950 border-t border-neutral-200/40">
   <div className="max-w-6xl mx-auto space-y-16 md:space-y-24">
     
-    {/* En-tête de section centré et minimaliste */}
+    {/* En-tête de section centré et minimaliste éditable en direct à l'écran */}
     <div className="text-center space-y-4 max-w-xl mx-auto">
-      <span className="font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block animate-fade-in">
-        {aboutSignatureTranslations[language].tagline}
+      
+      {/* Tagline éditable */}
+      <span
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('signature_tagline', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('signature_tagline')}
+        style={getInlineStyle('signature_tagline')}
+        className={`font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block animate-fade-in outline-none rounded-xs whitespace-pre-wrap ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'signature_tagline' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('signature_tagline', language === 'fr' ? 'value_fr' : 'value_en', aboutSignatureTranslations[language].tagline)}
       </span>
-      <h2 className="font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight">
-        {aboutSignatureTranslations[language].heading}
+
+      {/* Titre de section éditable */}
+      <h2
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('signature_heading', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('signature_heading')}
+        style={getInlineStyle('signature_heading')}
+        className={`font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'signature_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('signature_heading', language === 'fr' ? 'value_fr' : 'value_en', aboutSignatureTranslations[language].heading)}
       </h2>
+
       <div className="w-12 h-[1px] bg-neutral-300 mx-auto mt-6" />
     </div>
 
-    {/* GRILLE DES OUTILS (3 Colonnes avec cadre Pass-Partout blanc d'exposition) */}
+    {/* GRILLE DES OUTILS DÉTAILLÉE (3 Colonnes avec cadre Pass-Partout blanc d'exposition) */}
     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
-      {aboutSignatureTranslations[language].items.map((item, index) => (
-        <div 
-          key={index} 
-          className="flex flex-col space-y-6 group"
-        >
-          {/* Cadre Marie-Louise : Un cadre blanc entourant la photo pour l'isoler artistiquement */}
-          <div className="bg-white p-4 shadow-sm border border-neutral-200/10 hover:shadow-md transition-all duration-500">
-            <div className="overflow-hidden aspect-[3/4] relative">
-              <img
-                src={item.imageUrl}
-                alt={item.title}
-                className="w-full h-full object-cover transition-transform duration-[1800ms] ease-out group-hover:scale-102"
-              />
-              <div className="absolute inset-0 bg-neutral-900/5 pointer-events-none" />
+      {[0, 1, 2].map((index) => {
+        const item = aboutSignatureTranslations[language].items[index];
+        const imageKey = `signature_image_${index}`;
+        const subtitleKey = `signature_subtitle_${index}`;
+        const titleKey = `signature_title_${index}`;
+        const descKey = `signature_description_${index}`;
+        const isSelected = selectedKey === imageKey;
+
+        return (
+          <div 
+            key={index} 
+            className="flex flex-col space-y-6 group text-left"
+          >
+            {/* Cadre Marie-Louise cliquable et modifiable de manière autonome */}
+            <div 
+              onClick={() => {
+                if (isEditing) {
+                  onSelectKey(imageKey);
+                  const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                  fileInput?.click(); // Déclenche l'upload local
+                }
+              }}
+              className={`bg-white p-4 shadow-sm border transition-all duration-500 cursor-pointer ${
+                isEditing ? 'hover:shadow-md' : 'hover:shadow-md'
+              } ${isEditing && isSelected ? 'ring-4 ring-neutral-400 ring-inset border-transparent' : 'border-neutral-200/10'}`}
+            >
+              <div className="overflow-hidden aspect-[3/4] relative">
+                <img
+                  src={getContent(imageKey, 'value_fr', item.imageUrl)}
+                  alt={item.title}
+                  className="w-full h-full object-cover transition-transform duration-[1800ms] ease-out group-hover:scale-102"
+                />
+                <div className="absolute inset-0 bg-neutral-900/5 pointer-events-none" />
+              </div>
             </div>
-          </div>
 
-          {/* Descriptif simple, ultra-lisible et très noir */}
-          <div className="space-y-2 px-1">
-            <span className="font-sans text-[10px] tracking-[0.25em] uppercase text-neutral-400 font-light block">
-              {item.subtitle}
-            </span>
-            <h3 className="font-serif text-xl md:text-2xl tracking-wide font-light text-neutral-900 leading-snug">
-              {item.title}
-            </h3>
-            <p className="font-sans text-xs md:text-sm font-light text-neutral-500 leading-relaxed tracking-wide pt-2">
-              {item.description}
-            </p>
-          </div>
+            {/* Descriptif simple, ultra-lisible et éditable au clic */}
+            <div className="space-y-2 px-1">
+              
+              {/* Sous-titre éditable */}
+              <span
+                contentEditable={isEditing}
+                suppressContentEditableWarning={true}
+                onBlur={(e) => onUpdateText(subtitleKey, e.currentTarget.innerText || '')}
+                onClick={() => isEditing && onSelectKey(subtitleKey)}
+                style={getInlineStyle(subtitleKey)}
+                className={`font-sans text-[10px] tracking-[0.25em] uppercase text-neutral-400 font-light block outline-none rounded-xs whitespace-pre-wrap ${
+                  isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+                } ${isEditing && selectedKey === subtitleKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+              >
+                {getContent(subtitleKey, language === 'fr' ? 'value_fr' : 'value_en', item.subtitle)}
+              </span>
 
-        </div>
-      ))}
+              {/* Titre éditable */}
+              <h3
+                contentEditable={isEditing}
+                suppressContentEditableWarning={true}
+                onBlur={(e) => onUpdateText(titleKey, e.currentTarget.innerText || '')}
+                onClick={() => isEditing && onSelectKey(titleKey)}
+                style={getInlineStyle(titleKey)}
+                className={`font-serif text-xl md:text-2xl tracking-wide font-light text-neutral-900 leading-snug outline-none rounded-xs whitespace-pre-wrap block ${
+                  isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+                } ${isEditing && selectedKey === titleKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+              >
+                {getContent(titleKey, language === 'fr' ? 'value_fr' : 'value_en', item.title)}
+              </h3>
+
+              {/* Description longue éditable */}
+              <p
+                contentEditable={isEditing}
+                suppressContentEditableWarning={true}
+                onBlur={(e) => onUpdateText(descKey, e.currentTarget.innerText || '')}
+                onClick={() => isEditing && onSelectKey(descKey)}
+                style={getInlineStyle(descKey)}
+                className={`font-sans text-xs md:text-sm font-light text-neutral-500 leading-relaxed tracking-wide pt-2 outline-none rounded-xs whitespace-pre-wrap block ${
+                  isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+                } ${isEditing && selectedKey === descKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+              >
+                {getContent(descKey, language === 'fr' ? 'value_fr' : 'value_en', item.description)}
+              </p>
+
+            </div>
+
+          </div>
+        );
+      })}
     </div>
 
   </div>
 </section>
 
-{/* SECTION : CALL TO ACTION (L'INVITATION SACRÉE SUR GRANDE PHOTO PANORAMIQUE) */}
+{/* SECTION : CALL TO ACTION D'À PROPOS (L'INVITATION SACRÉE DYNAMIQUE SUR GRANDE PHOTO PANORAMIQUE) */}
 <section className="relative h-[65vh] md:h-[75vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white">
   
-  {/* Grande image panoramique spirituelle et lumineuse en arrière-plan */}
+  {/* Grande image panoramique spirituelle en arrière-plan (Cliquable et modifiable de manière autonome d'À Propos) */}
   <div
-    className="absolute inset-0 transition-transform duration-[4000ms] ease-out group-hover:scale-105"
+    onClick={() => {
+      if (isEditing) {
+        onSelectKey('about_cta_bg_image');
+        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+        fileInput?.click(); // Déclenche l'upload local
+      }
+    }}
+    className={`absolute inset-0 transition-transform duration-[4000ms] ease-out group-hover:scale-105 bg-cover bg-center ${
+      isEditing ? 'cursor-pointer hover:brightness-90' : ''
+    } ${isEditing && selectedKey === 'about_cta_bg_image' ? 'ring-4 ring-white/40 ring-inset' : ''}`}
     style={{
-      backgroundImage: `url('https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80')`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
+      backgroundImage: `url(${getContent('about_cta_bg_image', 'value_fr', 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80')})`,
     }}
   />
 
@@ -418,66 +789,154 @@ export default function AboutPage() {
   {/* Contenu de l'invitation */}
   <div className="relative z-10 text-center max-w-3xl space-y-6 md:space-y-8 px-4">
     
-    {/* Tagline de taille plus confortable */}
-    <span className="font-sans text-xs md:text-sm tracking-[0.35em] uppercase font-light text-neutral-300 block animate-pulse">
-      {ctaSectionTranslations[language].tagline}
+    {/* Tagline éditable en direct */}
+    <span
+      contentEditable={isEditing}
+      suppressContentEditableWarning={true}
+      onBlur={(e) => onUpdateText('about_cta_tagline', e.currentTarget.innerText || '')}
+      onClick={() => isEditing && onSelectKey('about_cta_tagline')}
+      style={getInlineStyle('about_cta_tagline')}
+      className={`font-sans text-xs md:text-sm tracking-[0.35em] uppercase font-light text-neutral-300 block outline-none rounded-xs whitespace-pre-wrap ${
+        isEditing ? 'hover:bg-white/10 cursor-text animate-none' : 'animate-pulse'
+      } ${isEditing && selectedKey === 'about_cta_tagline' ? 'border border-dashed border-white bg-white/10' : ''}`}
+    >
+      {getContent('about_cta_tagline', language === 'fr' ? 'value_fr' : 'value_en', ctaSectionTranslations[language].tagline)}
     </span>
 
-    {/* Grand Titre artistique bien visible (Cormorant Garamond) */}
-    <h2 className="font-serif text-3xl md:text-5xl lg:text-6xl tracking-wide font-light leading-tight text-white">
-      {ctaSectionTranslations[language].heading}
+    {/* Grand Titre artistique bien visible (Cormorant Garamond) éditable */}
+    <h2
+      contentEditable={isEditing}
+      suppressContentEditableWarning={true}
+      onBlur={(e) => onUpdateText('about_cta_heading', e.currentTarget.innerText || '')}
+      onClick={() => isEditing && onSelectKey('about_cta_heading')}
+      style={getInlineStyle('about_cta_heading')}
+      className={`font-serif text-3xl md:text-5xl lg:text-6xl tracking-wide font-light leading-tight text-white outline-none rounded-xs whitespace-pre-wrap ${
+        isEditing ? 'hover:bg-white/10 cursor-text' : ''
+      } ${isEditing && selectedKey === 'about_cta_heading' ? 'border border-dashed border-white bg-white/10' : ''}`}
+    >
+      {getContent('about_cta_heading', language === 'fr' ? 'value_fr' : 'value_en', ctaSectionTranslations[language].heading)}
     </h2>
 
-    {/* Descriptif poétique agrandi à 16px (text-base) et contrasté (text-neutral-200) */}
-    <p className="font-sans text-sm md:text-base tracking-[0.12em] leading-relaxed font-light text-neutral-200 max-w-2xl mx-auto">
-      {ctaSectionTranslations[language].description}
+    {/* Descriptif poétique éditable */}
+    <p
+      contentEditable={isEditing}
+      suppressContentEditableWarning={true}
+      onBlur={(e) => onUpdateText('about_cta_description', e.currentTarget.innerText || '')}
+      onClick={() => isEditing && onSelectKey('about_cta_description')}
+      style={getInlineStyle('about_cta_description')}
+      className={`font-sans text-sm md:text-base tracking-[0.12em] leading-relaxed font-light text-neutral-200 max-w-2xl mx-auto outline-none rounded-xs whitespace-pre-wrap ${
+        isEditing ? 'hover:bg-white/10 cursor-text' : ''
+      } ${isEditing && selectedKey === 'about_cta_description' ? 'border border-dashed border-white bg-white/10' : ''}`}
+    >
+      {getContent('about_cta_description', language === 'fr' ? 'value_fr' : 'value_en', ctaSectionTranslations[language].description)}
     </p>
 
-    {/* Bouton d'action minimaliste et élégant */}
+    {/* Bouton d'action minimaliste et élégant (Texte du bouton éditable au clic) */}
     <div className="pt-4">
       <Link
         href="/contact"
+        onClick={(e) => {
+          if (isEditing) {
+            e.preventDefault(); // Évite la redirection de page lors de l'édition
+          }
+        }}
         className="bg-white/10 backdrop-blur-md border border-white/40 text-white text-[10px] md:text-xs uppercase tracking-[0.25em] font-light px-10 py-4 hover:bg-white hover:text-neutral-900 hover:border-white transition-all duration-500 inline-block rounded-none shadow-md cursor-pointer"
       >
-        {ctaSectionTranslations[language].buttonText}
+        <span
+          contentEditable={isEditing}
+          suppressContentEditableWarning={true}
+          onBlur={(e) => onUpdateText('about_cta_button_text', e.currentTarget.innerText || '')}
+          onClick={() => isEditing && onSelectKey('about_cta_button_text')}
+          style={getInlineStyle('about_cta_button_text')}
+          className={`outline-none whitespace-pre-wrap ${isEditing ? 'cursor-text' : ''}`}
+        >
+          {getContent('about_cta_button_text', language === 'fr' ? 'value_fr' : 'value_en', ctaSectionTranslations[language].buttonText)}
+        </span>
       </Link>
     </div>
 
   </div>
 </section>
 
-{/* SECTION : INTEGRATION INSTAGRAM MASONRY FOUITA (LARGEUR AJUSTÉE SANS VIDE) */}
+{/* SECTION : INTEGRATION INSTAGRAM D'À PROPOS (LUMIÈRE & COMMUNION GLOBALE) */}
 <section className="bg-[#FAF9F6] pt-12 pb-8 md:pb-12 px-4 md:px-8 border-t border-neutral-200/40">
   <div className="w-full space-y-16">
     
-    {/* En-tête de section avec votre nom de compte IG mis en valeur */}
+    {/* En-tête de section avec votre nom de compte IG mis en valeur et éditable */}
     <div className="text-center space-y-4 max-w-xl mx-auto">
-      <span className="font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block">
-        {instagramSectionTranslations[language].tagline}
+      
+      {/* Tagline éditable */}
+      <span
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('instagram_tagline', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('instagram_tagline')}
+        style={getInlineStyle('instagram_tagline')}
+        className={`font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block outline-none rounded-xs whitespace-pre-wrap ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'instagram_tagline' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('instagram_tagline', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].tagline)}
       </span>
-      <h2 className="font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight">
-        {instagramSectionTranslations[language].heading}
+
+      {/* Titre de section éditable */}
+      <h2
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('instagram_heading', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('instagram_heading')}
+        style={getInlineStyle('instagram_heading')}
+        className={`font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'instagram_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('instagram_heading', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].heading)}
       </h2>
       
-      {/* Votre lien de compte Instagram artistique */}
+      {/* Votre lien de compte Instagram artistique éditable en direct */}
       <div className="pt-2">
         <a 
           href="https://www.instagram.com/animaelumen" 
           target="_blank" 
           rel="noopener noreferrer"
-          className="font-serif text-xl md:text-2xl italic font-light text-neutral-600 hover:text-neutral-900 transition-colors duration-300 underline underline-offset-8"
+          onClick={(e) => {
+            if (isEditing) {
+              e.preventDefault(); // Évite la redirection lors du clic en mode édition
+              onSelectKey('instagram_handle');
+            }
+          }}
+          className="font-serif text-xl md:text-2xl italic font-light text-neutral-600 hover:text-neutral-900 transition-colors duration-300 underline underline-offset-8 inline-block"
         >
-          @animaelumen
+          <span
+            contentEditable={isEditing}
+            suppressContentEditableWarning={true}
+            onBlur={(e) => onUpdateText('instagram_handle', e.currentTarget.innerText || '')}
+            style={getInlineStyle('instagram_handle')}
+            className={`outline-none whitespace-pre-wrap ${isEditing ? 'cursor-text' : ''}`}
+          >
+            {getContent('instagram_handle', 'value_fr', '@animaelumen')}
+          </span>
         </a>
       </div>
 
-      <p className="font-sans text-xs md:text-sm font-light text-neutral-500 tracking-wide max-w-xs mx-auto pt-4">
-        {instagramSectionTranslations[language].subheading}
+      {/* Paragraphe descriptif éditable sous le lien */}
+      <p
+        contentEditable={isEditing}
+        suppressContentEditableWarning={true}
+        onBlur={(e) => onUpdateText('instagram_subheading', e.currentTarget.innerText || '')}
+        onClick={() => isEditing && onSelectKey('instagram_subheading')}
+        style={getInlineStyle('instagram_subheading')}
+        className={`font-sans text-xs md:text-sm font-light text-neutral-500 tracking-wide max-w-xs mx-auto pt-4 outline-none rounded-xs whitespace-pre-wrap block ${
+          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
+        } ${isEditing && selectedKey === 'instagram_subheading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+      >
+        {getContent('instagram_subheading', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].subheading)}
       </p>
+      
       <div className="w-12 h-[1px] bg-neutral-300 mx-auto mt-6" />
     </div>
 
-    {/* CONTAINER AJUSTÉ À 1440px (max-w-[90rem]) ET HAUTEUR AUTOMATIQUE SANS ESPACE VIDE */}
+    {/* CONTAINER DU WIDGET FOUITA (Intact et sécurisé) */}
     <div className="max-w-[90rem] mx-auto w-full px-2 md:px-6">
       <div className="w-full h-auto">
         
@@ -488,7 +947,7 @@ export default function AboutPage() {
           id="ftuaxm8l1"
         />
 
-        {/* Chargement dynamique et sécurisé du script d'intégration Fouita */}
+        {/* Script d'intégration Fouita */}
         <Script 
           src="https://wdg.fouita.com/widgets/0x48d497.js"
           strategy="lazyOnload"
@@ -497,15 +956,29 @@ export default function AboutPage() {
       </div>
     </div>
 
-    {/* Bouton d'invitation à s'abonner (Qui se place désormais parfaitement sous la grille) */}
+    {/* Bouton d'invitation à s'abonner (Texte du bouton éditable au clic) */}
     <div className="text-center pt-4">
       <a
         href="https://www.instagram.com/animaelumen"
         target="_blank"
         rel="noopener noreferrer"
+        onClick={(e) => {
+          if (isEditing) {
+            e.preventDefault(); // Évite la redirection en mode édition
+            onSelectKey('instagram_button_text');
+          }
+        }}
         className="text-[10px] md:text-xs uppercase tracking-[0.25em] font-light text-neutral-800 border border-neutral-800/30 px-8 py-3.5 hover:bg-neutral-800 hover:text-white hover:border-neutral-800 transition-all duration-500 inline-block rounded-none cursor-pointer"
       >
-        {instagramSectionTranslations[language].buttonText}
+        <span
+          contentEditable={isEditing}
+          suppressContentEditableWarning={true}
+          onBlur={(e) => onUpdateText('instagram_button_text', e.currentTarget.innerText || '')}
+          style={getInlineStyle('instagram_button_text')}
+          className={`outline-none whitespace-pre-wrap ${isEditing ? 'cursor-text' : ''}`}
+        >
+          {getContent('instagram_button_text', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].buttonText)}
+        </span>
       </a>
     </div>
 

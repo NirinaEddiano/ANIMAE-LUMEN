@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import HomePage from '../(public)/page'; // Importation directe de votre VRAIE page d'accueil d'origine !
+import AboutPage from '../(public)/about/page'; // Importation directe de votre vraie page À Propos !
+import ContactPage from '../(public)/contact/page'; // Importation directe de votre vraie page de Contact !
 
 interface ContentItem {
   key: string;
@@ -28,6 +30,9 @@ export default function AdminPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // État de l'onglet de page actif dans l'administration ('home', 'about' ou 'contact')
+  const [activeTab, setActiveTab] = useState<'home' | 'about' | 'contact'>('home');
 
   useEffect(() => {
     const checkUserAndFetch = async () => {
@@ -180,6 +185,56 @@ export default function AdminPage() {
   // Si l'élément cliqué n'est pas encore en base de données, on génère un profil temporaire pour pouvoir l'éditer et le créer à la volée !
   // --- NOUVEAU : Résolveur d'images d'origine pour éviter tout décalage à droite ---
   const getDefaultImage = (key: string): string => {
+  // AJOUTER CES DEUX LIGNES :
+  if (key === 'contact_image_1') return 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=600&q=80';
+  if (key === 'contact_image_2') return 'https://images.unsplash.com/photo-1528319725582-ddc096101511?auto=format&fit=crop&w=600&q=80';
+  
+  if (key === 'contact_hero_image') return 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80';
+  // ... reste de votre code inchangé ...
+  // AJOUTER CETTE LIGNE :
+  if (key === 'contact_hero_image') return 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80';
+  
+  if (key === 'about_hero_image') return 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1600&q=80';
+  // ... reste de votre code inchangé ...
+  // AJOUTER CETTE LIGNE :
+  if (key === 'about_cta_bg_image') return 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80';
+  
+  // AJOUTER CE BLOC :
+  if (key.startsWith('signature_image_')) {
+    const index = parseInt(key.replace('signature_image_', ''), 10);
+    const signatureFallbacks = [
+      'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1528319725582-ddc096101511?auto=format&fit=crop&w=600&q=80'
+    ];
+    return signatureFallbacks[index] || "";
+  }
+  
+  if (key === 'experience_image_1') return 'https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?auto=format&fit=crop&w=800&q=80';
+  // ... reste de votre code inchangé ...
+  // AJOUTER CES DEUX LIGNES :
+  if (key === 'experience_image_1') return 'https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?auto=format&fit=crop&w=800&q=80';
+  if (key === 'experience_image_2') return 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=600&q=80';
+  
+  if (key === 'about_hero_image') return 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1600&q=80';
+  // ... reste de votre code inchangé ...
+    // Détecte s'il s'agit du collage à 7 photos d'À Propos
+    if (key.startsWith('about_image_')) {
+      const index = parseInt(key.replace('about_image_', ''), 10);
+      const aboutFallbacks = [
+        'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&w=600&q=80',
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80'
+      ];
+      return aboutFallbacks[index] || "";
+    }
+    if (key === 'about_hero_image') return 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1600&q=80';
+  
+  if (key === 'vision_image_1') return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=80';
     if (key === 'vision_image_1') return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=80';
     if (key === 'vision_image_2') return 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=80';
     
@@ -237,12 +292,49 @@ export default function AdminPage() {
         
         {/* Barre d'administration haute ultra-fine */}
         <div className="fixed top-0 left-0 w-full bg-white/95 border-b border-neutral-200 py-3 px-6 z-50 flex items-center justify-between shadow-xs">
+          
+          {/* Logo gauche */}
           <div className="flex items-center space-x-4">
             <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
             <h1 className="font-serif text-xs tracking-widest text-neutral-900 uppercase">
-              ANIMAE LUMEN <span className="font-sans text-[9px] text-neutral-400 pl-2">Mode Édition en direct</span>
+              ANIMAE LUMEN
             </h1>
           </div>
+
+          {/* MENU DE NAVIGATION DE L'ÉDITEUR (Au Centre) */}
+          {/* MENU DE NAVIGATION DE L'ÉDITEUR (Au Centre) */}
+          <div className="flex items-center space-x-8">
+            <button
+              onClick={() => { setActiveTab('home'); setSelectedKey(null); }}
+              className={`font-sans text-[10px] tracking-[0.25em] uppercase pb-1 transition-all cursor-pointer ${
+                activeTab === 'home' ? 'text-neutral-950 border-b border-neutral-950 font-semibold' : 'text-neutral-400 hover:text-neutral-950'
+              }`}
+            >
+              Accueil
+            </button>
+            <button
+              onClick={() => { setActiveTab('about'); setSelectedKey(null); }}
+              className={`font-sans text-[10px] tracking-[0.25em] uppercase pb-1 transition-all cursor-pointer ${
+                activeTab === 'about' ? 'text-neutral-950 border-b border-neutral-950 font-semibold' : 'text-neutral-400 hover:text-neutral-950'
+              }`}
+            >
+              À Propos
+            </button>
+            
+            {/* Bouton Contact désormais actif */}
+            <button
+              onClick={() => { setActiveTab('contact'); setSelectedKey(null); }}
+              className={`font-sans text-[10px] tracking-[0.25em] uppercase pb-1 transition-all cursor-pointer ${
+                activeTab === 'contact' ? 'text-neutral-950 border-b border-neutral-950 font-semibold' : 'text-neutral-400 hover:text-neutral-950'
+              }`}
+            >
+              Contact
+            </button>
+            
+            <span className="font-sans text-[10px] tracking-[0.25em] uppercase text-neutral-300 select-none cursor-not-allowed">Portfolio</span>
+          </div>
+
+          {/* Bouton déconnexion droit */}
           <button onClick={handleLogout} className="text-[10px] uppercase tracking-[0.2em] font-light text-red-800 hover:opacity-80 transition-opacity cursor-pointer">
             Quitter l'éditeur
           </button>
@@ -252,23 +344,39 @@ export default function AdminPage() {
         <div className="flex-grow pt-14 flex flex-row h-[calc(100vh-3.5rem)] overflow-hidden">
           
           {/* LE SITE RÉEL (À Gauche - S'adapte à la largeur et affiche votre vraie page d'accueil d'origine !) */}
+          {/* LE SITE RÉEL (À Gauche - Affiche l'Accueil ou l'À Propos selon l'onglet cliqué au centre) */}
           <div className="flex-grow overflow-y-auto pr-[280px]">
             <div className="bg-[#FAF9F6]">
               
               {/* INPUT INVISIBLE POUR L'UPLOAD PHOTO LOCAL */}
               <input type="file" ref={fileInputRef} onChange={(e) => handleLocalImageUpload(e, selectedKey || '')} className="hidden" accept="image/*" />
 
-              {/* 
-                RENDU DU VRAI SITE D'ACCUEIL :
-                Nous appelons votre composant HomePage réel d'origine !
-              */}
-              <HomePage 
-                isEditing={true}
-                selectedKey={selectedKey}
-                onSelectKey={setSelectedKey}
-                onUpdateText={(key, val) => updateField(key, 'value_fr', val)}
-                dbContent={contentList}
-              />
+             {/* RENDER CONDITIONNEL DE LA PAGE ACTIVE (Accueil, À Propos ou Contact) */}
+              {activeTab === 'home' ? (
+                <HomePage 
+                  isEditing={true}
+                  selectedKey={selectedKey}
+                  onSelectKey={setSelectedKey}
+                  onUpdateText={(key, val) => updateField(key, 'value_fr', val)}
+                  dbContent={contentList}
+                />
+              ) : activeTab === 'about' ? (
+                <AboutPage 
+                  isEditing={true}
+                  selectedKey={selectedKey}
+                  onSelectKey={setSelectedKey}
+                  onUpdateText={(key, val) => updateField(key, 'value_fr', val)}
+                  dbContent={contentList}
+                />
+              ) : (
+                <ContactPage 
+                  isEditing={true}
+                  selectedKey={selectedKey}
+                  onSelectKey={setSelectedKey}
+                  onUpdateText={(key, val) => updateField(key, 'value_fr', val)}
+                  dbContent={contentList}
+                />
+              )}
 
             </div>
           </div>
