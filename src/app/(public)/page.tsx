@@ -521,6 +521,17 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
   }
 };
 
+// Ajoutez cet état dans votre HomePage
+const [portfolios, setPortfolios] = useState<any[]>([]);
+
+useEffect(() => {
+  const fetchAll = async () => {
+    const { data } = await supabase.from('portfolios').select('*');
+    if (data) setPortfolios(data);
+  };
+  fetchAll();
+},[]);
+
   return (
     <main className="min-h-screen bg-[#FAF9F6] overflow-x-hidden">
       
@@ -1018,228 +1029,51 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
     <div className="w-12 h-[1px] bg-neutral-300 mx-auto mt-6" />
   </div>
 
-  {/* FRESQUE PHOTO MASONRY RESPIRANTE EN COULEURS NATURELLES (24 PHOTOS) */}
+  {/* FRESQUE PHOTO MASONRY RESPIRANTE - DYNAMIQUE */}
   <div className="w-full px-0">
     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 lg:gap-3">
       
-      {/* COLONNE 1 : Photos 1 à 6 */}
-      <div className="flex flex-col gap-2 lg:gap-3">
-        {/* Photo 1 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/4] relative group shadow-xs cursor-pointer animate-breathe-1">
-          <img
-            src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80"
-            alt="Portrait"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
+      {/* On crée 4 colonnes. Chaque colonne affiche une partie des images issues de VOS portfolios */}
+      {[0, 1, 2, 3].map((colIndex) => (
+        <div key={colIndex} className={`flex flex-col gap-2 lg:gap-3 ${colIndex === 1 || colIndex === 3 ? 'md:translate-y-12' : ''}`}>
+          
+          {/* On répartit les photos de tous les portfolios dans les 4 colonnes */}
+          {portfolios
+            .flatMap(p => p.images) // Récupère toutes les images de tous les portfolios
+            .filter((_, i) => i % 4 === colIndex) // Répartit équitablement
+            .slice(0, 8) // Affichera 8 photos par colonne (soit 32 max, vous en aurez 30)
+            .map((imgUrl, imgIdx) => (
+              <div 
+                key={imgIdx} 
+                className={`overflow-hidden bg-neutral-100 relative group shadow-xs cursor-pointer animate-breathe-${(imgIdx % 4) + 1}`}
+              >
+                <img
+                  src={imgUrl}
+                  alt="Réalisation Animae Lumen"
+                  className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
+                />
+              </div>
+          ))}
         </div>
-        {/* Photo 2 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[1/1] relative group shadow-xs cursor-pointer animate-breathe-2">
-          <img
-            src="https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=600&q=80"
-            alt="Rituels"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 3 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[16/9] relative group shadow-xs cursor-pointer animate-breathe-4">
-          <img
-            src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=600&q=80"
-            alt="Coucher soleil eau"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 4 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/4] relative group shadow-xs cursor-pointer animate-breathe-4">
-          <img
-            src="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=600&q=80"
-            alt="Nature sauvage"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 5 (Nouvelle) */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[1/1] relative group shadow-xs cursor-pointer animate-breathe-1">
-          <img
-            src="https://images.unsplash.com/photo-1512438248247-f0f2a5a8b7f0?auto=format&fit=crop&w=600&q=80"
-            alt="Portrait"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 6 (Nouvelle) */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/2] relative group shadow-xs cursor-pointer animate-breathe-2">
-          <img
-            src="https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=600&q=80"
-            alt="Fumée sacrée"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-      </div>
-
-      {/* COLONNE 2 : Photos 7 à 12 (Décalée vers le bas) */}
-      <div className="flex flex-col gap-2 lg:gap-3 md:translate-y-6">
-        {/* Photo 7 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/2] relative group shadow-xs cursor-pointer animate-breathe-3">
-          <img
-            src="https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=600&q=80"
-            alt="Sororité"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 8 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/4] relative group shadow-xs cursor-pointer animate-breathe-4">
-          <img
-            src="https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=600&q=80"
-            alt="Méditation"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 9 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[1/1] relative group shadow-xs cursor-pointer animate-breathe-1">
-          <img
-            src="https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=600&q=80"
-            alt="Étreinte"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 10 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/2] relative group shadow-xs cursor-pointer animate-breathe-2">
-          <img
-            src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=600&q=80"
-            alt="Énergie sauvage"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 11 (Nouvelle) */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/4] relative group shadow-xs cursor-pointer animate-breathe-3">
-          <img
-            src="https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=600&q=80"
-            alt="Nature/Rochers"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 12 (Nouvelle) */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[1/1] relative group shadow-xs cursor-pointer animate-breathe-4">
-          <img
-            src="https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=600&q=80"
-            alt="Forêt"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-      </div>
-
-      {/* COLONNE 3 : Photos 13 à 18 */}
-      <div className="flex flex-col gap-2 lg:gap-3">
-        {/* Photo 13 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/4] relative group shadow-xs cursor-pointer animate-breathe-2">
-          <img
-            src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80"
-            alt="Cérémonie"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 14 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/2] relative group shadow-xs cursor-pointer animate-breathe-1">
-          <img
-            src="https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?auto=format&fit=crop&w=600&q=80"
-            alt="Tambour"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 15 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/4] relative group shadow-xs cursor-pointer animate-breathe-4">
-          <img
-            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80"
-            alt="Portrait"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 16 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[1/1] relative group shadow-xs cursor-pointer animate-breathe-3">
-          <img
-            src="https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?auto=format&fit=crop&w=600&q=80"
-            alt="Fleurs sauvages"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 17 (Nouvelle) */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/4] relative group shadow-xs cursor-pointer animate-breathe-2">
-          <img
-            src="https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=600&q=80"
-            alt="Arbre soleil"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 18 (Nouvelle) */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/2] relative group shadow-xs cursor-pointer animate-breathe-1">
-          <img
-            src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80"
-            alt="Eau sereine"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-      </div>
-
-      {/* COLONNE 4 : Photos 19 à 24 (Décalée vers le bas) */}
-      <div className="flex flex-col gap-2 lg:gap-3 md:translate-y-12">
-        {/* Photo 19 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[16/9] relative group shadow-xs cursor-pointer animate-breathe-4">
-          <img
-            src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80"
-            alt="Montagnes"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 20 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/4] relative group shadow-xs cursor-pointer animate-breathe-3">
-          <img
-            src="https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&w=600&q=80"
-            alt="Ancrage"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 21 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/2] relative group shadow-xs cursor-pointer animate-breathe-2">
-          <img
-            src="https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=600&q=80"
-            alt="Portrait"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 22 (Nouvelle) */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/4] relative group shadow-xs cursor-pointer animate-breathe-1">
-          <img
-            src="https://images.unsplash.com/photo-1528319725582-ddc096101511?auto=format&fit=crop&w=600&q=80"
-            alt="Fumigation main"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 23 (Nouvelle) */}
-        {/* Photo 4.5 */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[16/9] relative group shadow-xs cursor-pointer animate-breathe-4">
-          <img
-            src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=600&q=80"
-            alt="Coucher soleil eau"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-        {/* Photo 24 (Nouvelle) */}
-        <div className="overflow-hidden bg-neutral-100 aspect-[3/4] relative group shadow-xs cursor-pointer animate-breathe-3">
-          <img
-            src="https://images.unsplash.com/photo-1520262494112-9fe481d36ec3?auto=format&fit=crop&w=600&q=80"
-            alt="Café nature"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
-          />
-        </div>
-      </div>
+      ))}
 
     </div>
   </div>
+  {/* Bouton Voir tout */}
+    <div className="text-center pt-12">
+      <Link
+        href="/portfolio"
+        className="text-[10px] uppercase tracking-[0.25em] font-light text-neutral-900 border border-neutral-900/30 px-10 py-4 hover:bg-neutral-800 hover:text-white hover:border-neutral-800 transition-all duration-500 inline-block rounded-none shadow-xs"
+      >
+        {language === 'fr' ? "Voir toute la galerie →" : "View full gallery →"}
+      </Link>
+    </div>
 </section>
 
 {/* SECTION : TOUTES LES RÉALISATIONS (DÉFILÉ CONTINU ET INFINI EN PLEIN ÉCRAN) */}
 {/* SECTION : TOUTES LES RÉALISATIONS (DÉFILÉ CONTINU ET INFINI EN PLEIN ÉCRAN) */}
 <section className="bg-[#FAF9F6] pt-2 pb-32 md:pt-4 md:pb-44 border-t border-neutral-200/40 overflow-hidden relative">
   
-  {/* Styles CSS pour gérer le défilement infini fluide sans coupure */}
   <style dangerouslySetInnerHTML={{__html: `
     @keyframes marqueeScroll {
       0% { transform: translateX(0); }
@@ -1250,7 +1084,6 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
       width: max-content;
       animation: marqueeScroll 45s linear infinite;
     }
-    /* Met en pause le défilement au survol de la souris sur n'importe quel projet */
     .animate-marquee-infinite:hover {
       animation-play-state: paused;
     }
@@ -1258,7 +1091,6 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
 
   <div className="w-full space-y-12">
     
-    {/* En-tête minimaliste centré (Aligné aux grilles du site) */}
     <div className="max-w-7xl mx-auto px-6 lg:px-12 text-left space-y-4">
       <span className="font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block animate-fade-in">
         {portfolioCarouselTranslations[language].tagline}
@@ -1269,37 +1101,29 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
       <div className="w-12 h-[1px] bg-neutral-300" />
     </div>
 
-    {/* CONTAINER PLEIN ÉCRAN SANS MARGES (Pellicule de défilement) */}
+    {/* CONTAINER PLEIN ÉCRAN - DYNAMIQUE */}
     <div className="w-full relative py-4">
-      {/* 
-        On duplique la liste des projets ([...projects, ...projects]) 
-        pour que la transition de fin de boucle soit totalement invisible.
-      */}
       <div className="animate-marquee-infinite space-x-5">
-        {[
-          ...portfolioCarouselTranslations[language].projects, 
-          ...portfolioCarouselTranslations[language].projects
-        ].map((project, index) => (
+        {/* On utilise [...portfolios, ...portfolios] pour la boucle infinie */}
+        {[...portfolios, ...portfolios].map((project, index) => (
           <div
             key={`${project.id}-${index}`}
             className="w-[260px] md:w-[310px] shrink-0 flex flex-col space-y-4 group"
           >
-            {/* Cadre photo au format vertical d'art (Aspect 4/5 pour s'adapter à l'alignement rectiligne) */}
             <Link href={`/portfolio/${project.id}`}>
               <div className="overflow-hidden bg-neutral-100 aspect-[4/5] relative cursor-pointer shadow-sm">
                 <img
-                  src={project.imageUrl}
-                  alt={project.title}
+                  src={project.images && project.images.length > 0 ? project.images[0] : 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80'}
+                  alt={language === 'fr' ? project.title_fr : project.title_en}
                   className="w-full h-full object-cover transition-transform duration-[1800ms] ease-out group-hover:scale-102"
                 />
                 <div className="absolute inset-0 bg-neutral-900/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
               </div>
             </Link>
 
-            {/* Titre & Lien de découverte (Textes de taille confortable et très lisibles) */}
             <div className="space-y-2 px-1">
               <h3 className="font-serif text-lg md:text-xl tracking-wide font-light text-neutral-800 leading-snug">
-                {project.title}
+                {language === 'fr' ? project.title_fr : project.title_en}
               </h3>
               <div className="pt-0.5">
                 <Link
@@ -1314,7 +1138,6 @@ const scrollTestimonials = (direction: 'left' | 'right') => {
         ))}
       </div>
     </div>
-
   </div>
 </section>
 

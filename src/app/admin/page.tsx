@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import HomePage from '../(public)/page'; // Importation directe de votre VRAIE page d'accueil d'origine !
 import AboutPage from '../(public)/about/page'; // Importation directe de votre vraie page À Propos !
 import ContactPage from '../(public)/contact/page'; // Importation directe de votre vraie page de Contact !
+import PortfolioPage from '../(public)/portfolio/page'; // Importation directe de votre vraie page de Portfolio !
 
 interface ContentItem {
   key: string;
@@ -23,6 +24,9 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
 
+  const [searchQuery, setSearchQuery] = useState('');
+const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
+
   // États de l'éditeur en direct
   const [contentList, setContentList] = useState<ContentItem[]>([]);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -32,7 +36,26 @@ export default function AdminPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // État de l'onglet de page actif dans l'administration ('home', 'about' ou 'contact')
-  const [activeTab, setActiveTab] = useState<'home' | 'about' | 'contact'>('home');
+  // Onglet actif ('home', 'about', 'contact' ou 'portfolio')
+  const [activeTab, setActiveTab] = useState<'home' | 'about' | 'contact' | 'portfolio'>('home');
+  // État de sous-navigation pour le Portfolio ('page' pour éditer l'en-tête réel, 'list' pour créer/gérer des projets)
+  const [portfolioSubTab, setPortfolioSubTab] = useState<'page' | 'list'>('list');
+
+  // États pour le Pop-up de suppression moderne
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [portfolioToDelete, setPortfolioToDelete] = useState<string | null>(null);
+
+  // États pour la gestion des Portfolios (Espace 2)
+  const [portfoliosList, setPortfoliosList] = useState<any[]>([]);
+  const [isEditingPortfolio, setIsEditingPortfolio] = useState(false);
+  const [newImageUrl, setNewImageUrl] = useState('');
+  const [editingPortfolio, setEditingPortfolio] = useState<any>({
+    id: null,
+    title_fr: '',
+    description_fr: '',
+    category: 'retreats',
+    images: []
+  });
 
   useEffect(() => {
     const checkUserAndFetch = async () => {
@@ -64,6 +87,114 @@ export default function AdminPage() {
 
     if (data && !error) {
       setContentList(data);
+    }
+  };
+
+  const fetchPortfolios = async () => {
+    const { data, error } = await supabase
+      .from('portfolios')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (data && !error) {
+      setPortfoliosList(data);
+    }
+  };
+
+  // Charge les portfolios au chargement s'il y a une session active
+  useEffect(() => {
+    if (user) {
+      fetchPortfolios();
+    }
+  }, [user]);
+
+  // Sauvegarder (Créer ou Modifier) un Portfolio avec Traduction Automatique du titre & description
+  const handleSavePortfolio = async () => {
+    setSaving(true);
+
+    const titleEn = await autoTranslate(editingPortfolio.title_fr);
+    const descEn = await autoTranslate(editingPortfolio.description_fr);
+
+    const portfolioData = {
+      title_fr: editingPortfolio.title_fr,
+      title_en: titleEn,
+      description_fr: editingPortfolio.description_fr,
+      description_en: descEn,
+      category: editingPortfolio.category,
+      images: editingPortfolio.images
+    };
+
+    if (editingPortfolio.id) {
+      // Modifier l'existant
+      await supabase
+        .from('portfolios')
+        .update(portfolioData)
+        .eq('id', editingPortfolio.id);
+    } else {
+      // Créer un nouveau
+      await supabase
+        .from('portfolios')
+        .insert([portfolioData]);
+    }
+
+    await fetchPortfolios();
+    setIsEditingPortfolio(false);
+    setSaving(false);
+  };
+
+  // Supprimer définitivement un portfolio
+  const handleDeletePortfolio = async (id: string) => {
+    if (confirm("Êtes-vous sûr de vouloir supprimer définitivement ce portfolio et toute sa galerie ?")) {
+      await supabase.from('portfolios').delete().eq('id', id);
+      await fetchPortfolios();
+    }
+  };
+
+  // Envoi de PLUSIEURS photos locales en parallèle vers Supabase Storage
+  const handlePortfolioMultiImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setSaving(true);
+    const uploadPromises = Array.from(files).map(async (file) => {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `portfolio-img-${Math.random()}.${fileExt}`;
+      const filePath = `portfolios/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from('site-media')
+        .upload(filePath, file);
+
+      if (error) {
+        console.error("Erreur upload :", error.message);
+        return null;
+      }
+
+      const { data } = supabase.storage.from('site-media').getPublicUrl(filePath);
+      return data ? data.publicUrl : null;
+    });
+
+    const results = await Promise.all(uploadPromises);
+    const validUrls = results.filter((url): url is string => url !== null);
+
+    setEditingPortfolio((prev: any) => ({
+      ...prev,
+      images: [...prev.images, ...validUrls]
+    }));
+    setSaving(false);
+  };
+
+  const triggerDeleteConfirmation = (id: string) => {
+    setPortfolioToDelete(id);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDeletePortfolio = async () => {
+    if (portfolioToDelete) {
+      await supabase.from('portfolios').delete().eq('id', portfolioToDelete);
+      await fetchPortfolios();
+      setDeleteModalOpen(false);
+      setPortfolioToDelete(null);
     }
   };
 
@@ -185,6 +316,12 @@ export default function AdminPage() {
   // Si l'élément cliqué n'est pas encore en base de données, on génère un profil temporaire pour pouvoir l'éditer et le créer à la volée !
   // --- NOUVEAU : Résolveur d'images d'origine pour éviter tout décalage à droite ---
   const getDefaultImage = (key: string): string => {
+    if (key === 'portfolio_cta_image') return 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80';
+  // AJOUTER CETTE LIGNE :
+  if (key === 'portfolio_hero_image') return 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1600&q=80';
+  
+  if (key === 'contact_hero_image') return 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80';
+  // ... reste de votre code inchangé ...
   // AJOUTER CES DEUX LIGNES :
   if (key === 'contact_image_1') return 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=600&q=80';
   if (key === 'contact_image_2') return 'https://images.unsplash.com/photo-1528319725582-ddc096101511?auto=format&fit=crop&w=600&q=80';
@@ -331,7 +468,15 @@ export default function AdminPage() {
               Contact
             </button>
             
-            <span className="font-sans text-[10px] tracking-[0.25em] uppercase text-neutral-300 select-none cursor-not-allowed">Portfolio</span>
+            {/* Bouton Portfolio désormais actif */}
+            <button
+              onClick={() => { setActiveTab('portfolio'); setSelectedKey(null); setIsEditingPortfolio(false); }}
+              className={`font-sans text-[10px] tracking-[0.25em] uppercase pb-1 transition-all cursor-pointer ${
+                activeTab === 'portfolio' ? 'text-neutral-950 border-b border-neutral-950 font-semibold' : 'text-neutral-400 hover:text-neutral-950'
+              }`}
+            >
+              Portfolio
+            </button>
           </div>
 
           {/* Bouton déconnexion droit */}
@@ -351,7 +496,7 @@ export default function AdminPage() {
               {/* INPUT INVISIBLE POUR L'UPLOAD PHOTO LOCAL */}
               <input type="file" ref={fileInputRef} onChange={(e) => handleLocalImageUpload(e, selectedKey || '')} className="hidden" accept="image/*" />
 
-             {/* RENDER CONDITIONNEL DE LA PAGE ACTIVE (Accueil, À Propos ou Contact) */}
+             {/* RENDER CONDITIONNEL DE LA PAGE ACTIVE (Accueil, À Propos, Contact ou Portfolios) */}
               {activeTab === 'home' ? (
                 <HomePage 
                   isEditing={true}
@@ -368,7 +513,7 @@ export default function AdminPage() {
                   onUpdateText={(key, val) => updateField(key, 'value_fr', val)}
                   dbContent={contentList}
                 />
-              ) : (
+              ) : activeTab === 'contact' ? (
                 <ContactPage 
                   isEditing={true}
                   selectedKey={selectedKey}
@@ -376,8 +521,231 @@ export default function AdminPage() {
                   onUpdateText={(key, val) => updateField(key, 'value_fr', val)}
                   dbContent={contentList}
                 />
-              )}
+              ) : (
+                /* --- ESPACE PORTFOLIO : Menu de jonglage entre Édition Visuelle et Gestion de projets --- */
+                <div className="p-8 space-y-12">
+                  
+                  {/* Petit sous-menu Odoo de jonglage */}
+                  <div className="flex flex-col gap-6 border-b border-neutral-200 pb-6">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <div className="flex items-center space-x-6">
+                        <button onClick={() => { setPortfolioSubTab('list'); setIsEditingPortfolio(false); }} className={`font-sans text-[10px] tracking-[0.2em] uppercase pb-1 transition-all cursor-pointer ${portfolioSubTab === 'list' ? 'text-neutral-950 border-b border-neutral-950 font-semibold' : 'text-neutral-400'}`}>
+                          Gérer les Galeries
+                        </button>
+                        <button onClick={() => { setPortfolioSubTab('page'); setIsEditingPortfolio(false); }} className={`font-sans text-[10px] tracking-[0.2em] uppercase pb-1 transition-all cursor-pointer ${portfolioSubTab === 'page' ? 'text-neutral-950 border-b border-neutral-950 font-semibold' : 'text-neutral-400'}`}>
+                          Éditer l'En-tête
+                        </button>
+                      </div>
 
+                      {portfolioSubTab === 'list' && !isEditingPortfolio && (
+                        <button onClick={() => { setEditingPortfolio({ id: null, title_fr: '', description_fr: '', category: 'retreats', images:[] }); setIsEditingPortfolio(true); }} className="text-[10px] uppercase tracking-[0.2em] font-light bg-neutral-950 text-white px-6 py-3 hover:bg-neutral-800 transition-colors cursor-pointer">
+                          + Créer un Portfolio
+                        </button>
+                      )}
+                    </div>
+                     {/* Barre de Recherche et Tri (Uniquement sur l'onglet Liste) */}
+                    {portfolioSubTab === 'list' && !isEditingPortfolio && (
+                      <div className="flex items-center gap-4 w-full">
+                        <input 
+                          type="text" 
+                          placeholder="Rechercher un portfolio..." 
+                          className="flex-grow bg-white border border-neutral-300 p-2.5 text-xs focus:outline-none"
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        <select 
+                          className="bg-white border border-neutral-300 p-2.5 text-xs focus:outline-none"
+                          onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest')}
+                        >
+                          <option value="newest">Plus récents</option>
+                          <option value="oldest">Plus anciens</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+
+                  {portfolioSubTab === 'page' ? (
+                    /* RENDU DU VRAI SITE PORTFOLIO POUR L'ÉDITION DIRECTE AU CLIC */
+                    <div className="bg-[#FAF9F6] border border-neutral-200">
+                      <PortfolioPage 
+                        isEditing={true}
+                        selectedKey={selectedKey}
+                        onSelectKey={setSelectedKey}
+                        onUpdateText={(key, val) => updateField(key, 'value_fr', val)}
+                        dbContent={contentList}
+                      />
+                    </div>
+                  ) : isEditingPortfolio ? (
+                    /* 2. FORMULAIRE DE CRÉATION EN 2 COLONNES */
+                    <div className="w-full bg-white p-6 md:p-8 border border-neutral-200/40 shadow-md text-left">
+                      <div className="flex items-center justify-between border-b border-neutral-100 pb-3 mb-8">
+                        <span className="font-sans text-[10px] tracking-widest uppercase font-semibold text-neutral-400">
+                          {editingPortfolio.id ? "Modifier le Portfolio" : "Nouveau Portfolio de Création"}
+                        </span>
+                        <button onClick={() => setIsEditingPortfolio(false)} className="text-neutral-400 hover:text-neutral-900 text-xs cursor-pointer">Annuler</button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                        {/* Colonne Gauche du formulaire : Les Textes */}
+                        <div className="space-y-6">
+                          <div className="flex flex-col space-y-2">
+                            <label className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500">Titre (Français)</label>
+                            <input
+                              type="text"
+                              required
+                              value={editingPortfolio.title_fr}
+                              onChange={(e) => setEditingPortfolio({ ...editingPortfolio, title_fr: e.target.value })}
+                              className="w-full bg-[#FAF9F6] border border-neutral-300 p-2.5 text-xs text-neutral-900 focus:outline-none"
+                            />
+                          </div>
+
+                          <div className="flex flex-col space-y-2">
+                            <label className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500">Catégorie</label>
+                            <select
+                              value={editingPortfolio.category}
+                              onChange={(e) => setEditingPortfolio({ ...editingPortfolio, category: e.target.value })}
+                              className="w-full bg-[#FAF9F6] border border-neutral-300 p-2.5 text-xs text-neutral-800 focus:outline-none"
+                            >
+                              <option value="retreats">Retraites Spirituelles</option>
+                              <option value="ceremonies">Cérémonies Sacrées</option>
+                              <option value="festivals">Festivals Conscients</option>
+                              <option value="portraits">Portraits Thérapeutiques</option>
+                            </select>
+                          </div>
+
+                          <div className="flex flex-col space-y-2">
+                            <label className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500">Description (Français)</label>
+                            <textarea
+                              rows={6}
+                              value={editingPortfolio.description_fr}
+                              onChange={(e) => setEditingPortfolio({ ...editingPortfolio, description_fr: e.target.value })}
+                              className="w-full bg-[#FAF9F6] border border-neutral-300 p-2.5 text-xs text-neutral-900 focus:outline-none resize-none leading-relaxed"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Colonne Droite du formulaire : Les Médias */}
+                        <div className="space-y-6">
+                          <div className="space-y-2">
+                            <span className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500 block">Ajouter des photos</span>
+                            <div 
+                              onClick={() => {
+                                const fileInput = document.getElementById('portfolio-multi-upload') as HTMLInputElement;
+                                fileInput?.click();
+                              }}
+                              className="border border-dashed border-neutral-300 hover:border-neutral-800 bg-[#FAF9F6] p-6 text-center cursor-pointer transition-colors flex flex-col items-center justify-center space-y-2"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-400">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="17 8 12 3 7 8" />
+                                <line x1="12" x2="12" y1="3" y2="15" />
+                              </svg>
+                              <span className="font-sans text-xs text-neutral-500 font-light">Glissez-déposez ou <span className="underline font-normal text-neutral-800">parcourir</span></span>
+                              <input type="file" id="portfolio-multi-upload" multiple onChange={handlePortfolioMultiImageUpload} className="hidden" accept="image/*" />
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col space-y-2">
+                            <span className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-400">Ou ajouter par lien URL :</span>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="text"
+                                value={newImageUrl}
+                                onChange={(e) => setNewImageUrl(e.target.value)}
+                                placeholder="Coller l'URL d'image ici..."
+                                className="w-full bg-[#FAF9F6] border border-neutral-300 p-2 text-xs text-neutral-900 focus:outline-none h-9"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (newImageUrl) {
+                                    setEditingPortfolio({ ...editingPortfolio, images: [...editingPortfolio.images, newImageUrl] });
+                                    setNewImageUrl('');
+                                  }
+                                }}
+                                className="text-xs uppercase tracking-widest bg-neutral-900 text-white px-4 py-2 hover:bg-neutral-800 h-9 cursor-pointer"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Photos de la galerie */}
+                          {editingPortfolio.images.length > 0 && (
+                            <div className="space-y-2">
+                              <span className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500 block">Photos ({editingPortfolio.images.length})</span>
+                              <div className="grid grid-cols-4 gap-3 max-h-[160px] overflow-y-auto pr-1">
+                                {editingPortfolio.images.map((imgUrl: string, idx: number) => (
+                                  <div key={idx} className="relative aspect-square bg-[#FAF9F6] group overflow-hidden border border-neutral-200">
+                                    <img src={imgUrl} className="w-full h-full object-cover" />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updated = [...editingPortfolio.images];
+                                        updated.splice(idx, 1);
+                                        setEditingPortfolio({ ...editingPortfolio, images: updated });
+                                      }}
+                                      className="absolute top-1 right-1 bg-red-800 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] hover:bg-red-950 transition-colors cursor-pointer shadow-sm"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="pt-6 border-t border-neutral-200 mt-8">
+                        <button
+                          onClick={handleSavePortfolio}
+                          disabled={saving}
+                          className="w-full text-xs uppercase tracking-[0.25em] font-light bg-neutral-950 text-white py-4 hover:bg-neutral-800 transition-all duration-300 cursor-pointer"
+                        >
+                          {saving ? "Sauvegarde..." : "Sauvegarder le Portfolio"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* 3. LISTE DES PORTFOLIOS */
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {portfoliosList
+                        .filter(p => p.title_fr.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .sort((a, b) => sortBy === 'newest' 
+                            ? new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                            : new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                        )
+                        .map((p) => (
+                        <div key={p.id} className="bg-white border border-neutral-200 p-4 shadow-xs flex flex-col justify-between">
+                          <div className="space-y-4">
+                            <div className="aspect-[3/2] w-full bg-[#FAF9F6] overflow-hidden">
+                              {p.images[0] ? <img src={p.images[0]} className="w-full h-full object-cover" /> : <div className="text-xs text-neutral-400 italic">Aucun visuel</div>}
+                            </div>
+                            <h4 className="font-serif text-lg">{p.title_fr}</h4>
+                          </div>
+                          <div className="flex justify-between pt-4 border-t border-neutral-100 mt-4">
+                            <button onClick={() => { setEditingPortfolio(p); setIsEditingPortfolio(true); }} className="text-xs underline cursor-pointer">Modifier</button>
+                            <button onClick={() => triggerDeleteConfirmation(p.id)} className="text-xs text-red-600 underline cursor-pointer">Supprimer</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {deleteModalOpen && (
+                    <div className="fixed inset-0 bg-neutral-950/20 z-50 flex items-center justify-center p-4">
+                      <div className="bg-white p-8 max-w-sm w-full border border-neutral-200 text-center space-y-6">
+                        <p className="font-sans text-xs">Supprimer cette galerie ?</p>
+                        <div className="flex justify-center gap-4">
+                          <button onClick={() => { setDeleteModalOpen(false); setPortfolioToDelete(null); }} className="text-xs border px-4 py-2">Annuler</button>
+                          <button onClick={confirmDeletePortfolio} className="text-xs bg-red-800 text-white px-4 py-2">Supprimer</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
