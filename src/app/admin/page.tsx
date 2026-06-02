@@ -111,36 +111,48 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   // Sauvegarder (Créer ou Modifier) un Portfolio avec Traduction Automatique du titre & description
   const handleSavePortfolio = async () => {
     setSaving(true);
+    try {
+      // 1. Traduction automatique gratuite (FR -> EN) avant l'envoi (Utilisation de autoTranslate)
+      const titleEn = await autoTranslate(editingPortfolio.title_fr);
+      const descEn = await autoTranslate(editingPortfolio.description_fr);
 
-    const titleEn = await autoTranslate(editingPortfolio.title_fr);
-    const descEn = await autoTranslate(editingPortfolio.description_fr);
+      const portfolioData = {
+        title_fr: editingPortfolio.title_fr,
+        title_en: titleEn,
+        description_fr: editingPortfolio.description_fr,
+        description_en: descEn,
+        category: editingPortfolio.category,
+        images: editingPortfolio.images
+      };
 
-    const portfolioData = {
-      title_fr: editingPortfolio.title_fr,
-      title_en: titleEn,
-      description_fr: editingPortfolio.description_fr,
-      description_en: descEn,
-      category: editingPortfolio.category,
-      images: editingPortfolio.images
-    };
-
+    // 2. Sauvegarde Supabase (Création ou Modification)
     if (editingPortfolio.id) {
       // Modifier l'existant
-      await supabase
+      const { error } = await supabase
         .from('portfolios')
         .update(portfolioData)
         .eq('id', editingPortfolio.id);
+
+      if (error) throw error;
     } else {
       // Créer un nouveau
-      await supabase
+      const { error } = await supabase
         .from('portfolios')
         .insert([portfolioData]);
+
+      if (error) throw error;
     }
 
+    // 3. Rafraîchir la liste et fermer l'interface de création
     await fetchPortfolios();
     setIsEditingPortfolio(false);
+
+  } catch (error) {
+    console.error("Erreur lors de la sauvegarde du portfolio :", error);
+  } finally {
     setSaving(false);
-  };
+  }
+};
 
   // Supprimer définitivement un portfolio
   const handleDeletePortfolio = async (id: string) => {
@@ -220,15 +232,22 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
     setSelectedKey(null);
   };
 
-  // API de Traduction Automatique (FR -> EN)
+  // API de Traduction Automatique (FR -> EN) - Version corrigée pour les longs paragraphes
   const autoTranslate = async (text: string): Promise<string> => {
     try {
       const response = await fetch(
         `https://translate.googleapis.com/translate_a/single?client=gtx&sl=fr&tl=en&dt=t&q=${encodeURIComponent(text)}`
       );
       const data = await response.json();
-      return data[0][0][0];
+      
+      // Correction : On rassemble toutes les phrases du tableau de traduction
+      if (data && data[0]) {
+        return data[0].map((slice: any) => slice[0]).join('');
+      }
+      
+      return text;
     } catch (error) {
+      console.error("Erreur de traduction :", error);
       return text;
     }
   };

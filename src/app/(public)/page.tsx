@@ -65,13 +65,13 @@ const servicesData = {
 const commonUiTranslations = {
   fr: {
     btnPortfolio: 'Découvrir',
-    btnApproach: 'En savoir plus',
+    btnApproach: 'Nous contacter', // Modifié pour rediriger vers le contact
     philosophyTitle: 'Notre Vision',
     philosophyText: 'Chaque lumière est une histoire, chaque silence un murmure de l\'âme. Notre objectif est de traduire ces vibrations invisibles en textures visuelles pures et intemporelles.',
   },
   en: {
     btnPortfolio: 'Portfolio',
-    btnApproach: 'Approach',
+    btnApproach: 'Get in touch', // Modifié pour la version anglaise
     philosophyTitle: 'Our Vision',
     philosophyText: 'Every light is a story, every silence a whisper of the soul. Our purpose is to translate these invisible vibrations into pure and timeless visual textures.',
   },
@@ -603,16 +603,24 @@ useEffect(() => {
 
           </div>
 
-          {/* Boutons d'action d'origine */}
-          <div className="flex items-center justify-center space-x-6 mt-6">
-            <button className="bg-white text-neutral-900 text-xs uppercase tracking-[0.2em] font-medium px-8 py-3 rounded-full shadow-lg transition-transform duration-300 hover:scale-105">
+          {/* Boutons d'action d'origine (Remplacés par des liens vers le Portfolio et le Contact) */}
+          <div className="flex items-center justify-center space-x-6 mt-6 relative z-30">
+            <Link 
+              href="/portfolio"
+              className="bg-white text-neutral-900 text-xs uppercase tracking-[0.2em] font-medium px-8 py-3.5 rounded-full shadow-lg transition-transform duration-300 hover:scale-105 inline-block text-center cursor-pointer"
+            >
               {ui.btnPortfolio}
-            </button>
-            <button className="bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs uppercase tracking-[0.2em] font-light px-8 py-3 rounded-full hover:bg-white hover:text-neutral-900 transition-all duration-300">
+            </Link>
+            
+            <Link 
+              href="/contact"
+              className="bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs uppercase tracking-[0.2em] font-light px-8 py-3.5 rounded-full hover:bg-white hover:text-neutral-900 transition-all duration-300 inline-block text-center cursor-pointer"
+            >
               {ui.btnApproach}
-            </button>
+            </Link>
           </div>
         </div>
+
 
         {/* 2. CARROUSEL EN ARCHE */}
         <div className="relative z-20 w-full max-w-4xl h-[180px] md:h-[220px] flex items-center justify-center pointer-events-auto">
