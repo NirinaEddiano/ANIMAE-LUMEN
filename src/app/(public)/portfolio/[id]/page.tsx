@@ -5,7 +5,16 @@ import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/context/LanguageContext';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import Script from 'next/script';
+import InstagramSection from '@/components/InstagramSection';
+
+const CATEGORY_LABELS: Record<string, { fr: string; en: string }> = {
+  retreats: { fr: 'Retraites Spirituelles', en: 'Spiritual Retreats' },
+  festivals: { fr: 'Festivals Conscients', en: 'Conscious Festivals' },
+  ceremonies: { fr: 'Cérémonies Sacrées', en: 'Sacred Ceremonies' },
+  portraits: { fr: 'Portraits Thérapeutiques', en: 'Therapeutic Portraits' },
+};
+
+
 
 export default function ProjectPage() {
   const { id } = useParams();
@@ -44,32 +53,31 @@ export default function ProjectPage() {
    if (loading) return <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">Loading...</div>;
   if (!project) return <div className="min-h-screen bg-[#FAF9F6] flex items-center justify-center">Projet non trouvé.</div>;
   return (
-    <main className="min-h-screen bg-[#FAF9F6]">
-      {/* 1. SECTION HERO : Style Éditorial (Image à gauche, texte à droite) */}
-    <section className="pt-32 pb-16 px-6 lg:px-12">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-        
-        {/* Image du projet (format 3/4) */}
-        <div className="lg:col-span-6 overflow-hidden bg-neutral-100 shadow-sm">
-          <img 
-            src={project.images[0] || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1000&q=80'} 
+    <main className="min-h-screen bg-[#FAF9F6] relative">
+      {/* 1. SPLIT-SCREEN HERO : Image 50% / Texte 50% */}
+      <section className="w-full grid grid-cols-1 md:grid-cols-2 min-h-[70vh] md:min-h-screen">
+        {/* Colonne gauche : Image plein format */}
+        <div className="relative w-full h-[50vh] md:h-full overflow-hidden bg-neutral-100">
+          <img
+            src={project.images[0] || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1000&q=80'}
             alt={language === 'fr' ? project.title_fr : project.title_en}
-            className="w-full h-full object-cover" 
+            className="w-full h-full object-cover"
           />
         </div>
 
-        {/* Titre et Description */}
-        <div className="lg:col-span-6 space-y-8 lg:pl-12">
-          <h1 className="font-serif text-3xl md:text-5xl font-light text-neutral-900 tracking-wide leading-tight">
+        {/* Colonne droite : Bloc texte fond beige */}
+        <div className="bg-[#EBE9E1] flex flex-col justify-center items-center md:items-start p-10 md:p-16 lg:p-24 text-center md:text-left">
+          <span className="font-sans text-xs tracking-[0.25em] uppercase text-neutral-500 mb-4">
+            {CATEGORY_LABELS[project.category]?.[language === 'fr' ? 'fr' : 'en'] || project.category}
+          </span>
+          <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl text-neutral-900 mb-6 leading-tight">
             {language === 'fr' ? project.title_fr : project.title_en}
           </h1>
-          <div className="w-16 h-[1px] bg-neutral-300" />
-          <p className="font-sans text-sm md:text-base text-neutral-600 font-light leading-relaxed">
+          <p className="font-sans text-sm md:text-base font-light text-neutral-600 leading-relaxed max-w-md">
             {language === 'fr' ? project.description_fr : project.description_en}
           </p>
         </div>
-      </div>
-    </section>
+      </section>
 
       {/* 2. GALERIE PHOTO (Style Masonry Épuré) */}
       <section className="px-4 md:px-12 pb-24">
@@ -83,18 +91,18 @@ export default function ProjectPage() {
       </section>
 
       {/* SECTION : AUTRES RÉALISATIONS (CARROUSEL INFINI DYNAMIQUE) */}
-  <section className="bg-[#FAF9F6] py-20 px-6 lg:px-12 border-t border-neutral-200/40 overflow-hidden">
+  <section className="bg-[#E2E0D5] py-20 px-6 lg:px-12 overflow-hidden">
     <div className="max-w-7xl mx-auto space-y-12">
       
       <div className="flex items-end justify-between">
-        <h3 className="font-serif text-2xl md:text-3xl font-light text-neutral-800">
+        <h3 className="font-serif text-2xl md:text-3xl font-light text-neutral-900">
           {language === 'fr' ? "Autres projets" : "Other projects"}
         </h3>
         
         {/* Boutons de navigation */}
         <div className="flex space-x-4">
-          <button onClick={() => carouselRef.current?.scrollBy({left: -300, behavior: 'smooth'})} className="w-10 h-10 border border-neutral-300 rounded-full flex items-center justify-center hover:bg-neutral-800 hover:text-white transition-all">←</button>
-          <button onClick={() => carouselRef.current?.scrollBy({left: 300, behavior: 'smooth'})} className="w-10 h-10 border border-neutral-300 rounded-full flex items-center justify-center hover:bg-neutral-800 hover:text-white transition-all">→</button>
+          <button onClick={() => carouselRef.current?.scrollBy({left: -300, behavior: 'smooth'})} className="w-10 h-10 border border-neutral-900/30 rounded-full flex items-center justify-center text-neutral-900 hover:bg-neutral-900 hover:text-[#E2E0D5] transition-all">←</button>
+          <button onClick={() => carouselRef.current?.scrollBy({left: 300, behavior: 'smooth'})} className="w-10 h-10 border border-neutral-900/30 rounded-full flex items-center justify-center text-neutral-900 hover:bg-neutral-900 hover:text-[#E2E0D5] transition-all">→</button>
         </div>
       </div>
 
@@ -116,7 +124,7 @@ export default function ProjectPage() {
               <h4 className="font-serif text-lg text-neutral-900">
                 {language === 'fr' ? p.title_fr : p.title_en || p.title_fr}
               </h4>
-              <Link href={`/portfolio/${p.id}`} className="text-[10px] uppercase tracking-widest text-neutral-500 border-b border-neutral-300">
+              <Link href={`/portfolio/${p.id}`} className="text-[10px] uppercase tracking-widest text-neutral-900/60 border-b border-neutral-900/30">
                 {language === 'fr' ? "Voir →" : "View →"}
               </Link>
             </div>
@@ -127,44 +135,7 @@ export default function ProjectPage() {
   </section>
 
 
-  {/* SECTION : INTEGRATION INSTAGRAM (Statique multilingue autonome) */}
-  <section className="bg-[#FAF9F6] pt-12 pb-8 md:pb-12 px-4 md:px-8 border-t border-neutral-200/40">
-    <div className="w-full space-y-16">
-      <div className="text-center space-y-4 max-w-xl mx-auto">
-        <span className="font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block">
-          {language === 'fr' ? "Le voyage continue" : "The journey continues"}
-        </span>
-        <h2 className="font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight">
-          {language === 'fr' ? "Rejoindre le cercle" : "Join the circle"}
-        </h2>
-        <div className="pt-2">
-          <a href="https://www.instagram.com/animaelumen" target="_blank" rel="noopener noreferrer" className="font-serif text-xl md:text-2xl italic font-light text-neutral-600 hover:text-neutral-900 transition-colors duration-300 underline underline-offset-8">
-            @animaelumen
-          </a>
-        </div>
-        <p className="font-sans text-xs md:text-sm font-light text-neutral-500 tracking-wide max-w-xs mx-auto pt-4">
-          {language === 'fr' 
-            ? "Plongez quotidiennement dans la poésie de l'invisible, du silence et de la présence pure." 
-            : "Dive daily into the poetry of the unseen, silence, and pure presence."
-          }
-        </p>
-        <div className="w-12 h-[1px] bg-neutral-300 mx-auto mt-6" />
-      </div>
-
-      <div className="max-w-[90rem] mx-auto w-full px-2 md:px-6">
-        <div className="w-full h-auto">
-          <div data-key="Masonry Instagram Feed" className="ft" id="ftuaxm8l1" />
-          <Script src="https://wdg.fouita.com/widgets/0x48d497.js" strategy="lazyOnload" />
-        </div>
-      </div>
-
-      <div className="text-center pt-4">
-        <a href="https://www.instagram.com/animaelumen" target="_blank" rel="noopener noreferrer" className="text-[10px] md:text-xs uppercase tracking-[0.25em] font-light text-neutral-800 border border-neutral-800/30 px-8 py-3.5 hover:bg-neutral-800 hover:text-white hover:border-neutral-800 transition-all duration-500 inline-block rounded-none cursor-pointer">
-          {language === 'fr' ? "Suivre sur Instagram" : "Follow on Instagram"}
-        </a>
-      </div>
-    </div>
-  </section>
+      <InstagramSection />
       
 
     </main>

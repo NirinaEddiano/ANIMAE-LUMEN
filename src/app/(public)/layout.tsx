@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
-import Footer from "@/components/Footer";
+import BurgerMenu from "@/components/BurgerMenu";
+import FooterWrapper from "@/components/FooterWrapper";
 
 export default function PublicLayout({
   children,
@@ -7,10 +8,11 @@ export default function PublicLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex flex-col min-h-screen justify-between">
+    <div className="flex flex-col min-h-screen">
       <Header />
-      <div className="flex-grow">{children}</div>
-      <Footer />
+      <BurgerMenu />
+      {children}
+      <FooterWrapper />
     </div>
   );
 }

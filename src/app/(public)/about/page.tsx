@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'; 
 import { useLanguage } from '@/context/LanguageContext';
 import Link from 'next/link';
-import Script from 'next/script';
 import { supabase } from '@/lib/supabase';
+import InstagramSection from '@/components/InstagramSection';
 
 // 1. Traductions de la section Hero d'À Propos
 const aboutHeroTranslations = {
@@ -44,13 +44,13 @@ const aboutVisionTranslations = {
 const aboutExperienceTranslations = {
   fr: {
     tagline: "L'expérience & le processus",
-    heading: "Créer un espace de sécurité totale",
+    heading: "L'expérience de l'espace sacré",
     description1: "Pour que l'âme accepte de se révéler, elle a besoin d'une sécurité absolue. C'est pourquoi je n'interviens jamais comme une simple observatrice extérieure. Je marche à vos côtés, je respire au rythme de vos rituels, et je me fonds doucement dans le silence de votre espace.",
     description2: "Sans flash, sans staging ni mise en scène artificielle, je travaille exclusivement en lumière naturelle. J'utilise un obturateur totalement silencieux pour préserver la pureté de vos instants de recueillement et la synergie de vos cercles. Vous êtes libre d'être, de pleurer, de danser, d'exister. Je me fais simplement gardienne de votre vérité.",
   },
   en: {
     tagline: "The experience & process",
-    heading: "Creating a container of absolute safety",
+    heading: "The sacred space experience",
     description1: "For the soul to reveal itself, it requires absolute safety. This is why I never arrive as a mere outside observer. I walk by your side, breathe to the rhythm of your rituals, and softly dissolve into the silence of your space.",
     description2: "No flash, no staging or artificial posing, I work exclusively in natural light. I use a completely silent shutter to preserve the purity of your moments of contemplation and the synergy of your circles. You are free to be, to weep, to dance, to exist. I simply act as the guardian of your truth.",
   }
@@ -65,19 +65,19 @@ const aboutSignatureTranslations = {
         title: "La Lumière Pure",
         subtitle: "Prismes & Réfractions",
         description: "Je n'utilise aucun éclairage artificiel. Je travaille uniquement avec le soleil, capturant les prismes et les réfractions naturelles de l'air pour envelopper mes sujets d'un voile de lumière céleste.",
-        imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80" // Prisme de lumière dorée
+        imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80"
       },
       {
         title: "Le Grain Organique",
         subtitle: "Texture & Intemporalité",
         description: "Mes images intègrent un grain doux et une texture organique inspirée de la pellicule argentique. Cela donne à l'image numérique une dimension intemporelle, brute et presque palpable au toucher.",
-        imageUrl: "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?auto=format&fit=crop&w=600&q=80" // Appareil argentique d'art
+        imageUrl: "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?auto=format&fit=crop&w=600&q=80"
       },
       {
         title: "L'Obturateur Silencieux",
         subtitle: "Présence & Discrétion",
         description: "Le silence est mon outil le plus précieux. Grâce à un équipement haut de gamme sans aucun bruit de déclenchement, je me fonds dans vos rituels pour préserver la vérité pure de vos cercles.",
-        imageUrl: "https://images.unsplash.com/photo-1528319725582-ddc096101511?auto=format&fit=crop&w=600&q=80" // Fumée sacrée épurée
+        imageUrl: "https://images.unsplash.com/photo-1528319725582-ddc096101511?auto=format&fit=crop&w=600&q=80"
       }
     ]
   },
@@ -122,21 +122,6 @@ const ctaSectionTranslations = {
   }
 };
 
-const instagramSectionTranslations = {
-  fr: {
-    tagline: "Le voyage continue",
-    heading: "Rejoindre le cercle",
-    subheading: "Plongez quotidiennement dans la poésie de l'invisible, du silence et de la présence pure.",
-    buttonText: "Suivre sur Instagram",
-  },
-  en: {
-    tagline: "The journey continues",
-    heading: "Join the circle",
-    subheading: "Dive daily into the poetry of the unseen, silence, and pure presence.",
-    buttonText: "Follow on Instagram",
-  }
-};
-
 export default function AboutPage({ 
   isEditing = false, 
   selectedKey = null, 
@@ -152,11 +137,10 @@ export default function AboutPage({
 }) {
   const { language } = useLanguage();
 
-  // --- CHARGEMENT DYNAMIQUE DES TEXTES & STYLES ---
   const [localDbContent, setLocalDbContent] = useState<any[]>([]);
 
   useEffect(() => {
-    if (isEditing) return; // En mode admin, les données viennent déjà du panneau admin
+    if (isEditing) return;
     const fetchContent = async () => {
       const { data } = await supabase.from('site_content').select('*');
       if (data) setLocalDbContent(data);
@@ -166,13 +150,11 @@ export default function AboutPage({
 
   const activeContent = isEditing ? dbContent : localDbContent;
 
-  // CORRIGÉ : Ajout du type (i: any) pour rassurer le compilateur TypeScript
   const getContent = (key: string, field: 'value_fr' | 'value_en', defaultValue: string) => {
     const item = activeContent.find((i: any) => i.key === key);
     return item ? item[field] : defaultValue;
   };
 
-  // CORRIGÉ : Ajout du type (i: any) pour rassurer le compilateur TypeScript
   const getInlineStyle = (key: string) => {
     const item = activeContent.find((i: any) => i.key === key);
     if (!item) return {};
@@ -182,25 +164,44 @@ export default function AboutPage({
       fontWeight: item.is_bold ? 'bold' : 'light' as const,
     };
   };
-  // ----------------------------------------------------
 
   const t = aboutHeroTranslations[language];
+
+  const IMAGE_KEYS = ['about_image_0', 'about_image_1', 'about_image_2', 'about_image_3', 'about_image_4', 'about_image_5', 'about_image_6'];
+  const IMAGE_FALLBACKS = [
+    'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80',
+    'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80',
+    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
+    'https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=600&q=80',
+    'https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=600&q=80',
+    'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&w=600&q=80',
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+  ];
+
+  const handleImageClick = (key: string) => {
+    if (isEditing) {
+      onSelectKey(key);
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      fileInput?.click();
+    }
+  };
+
+  const bgTexture = getContent('portfolio_grid_bg_texture', 'value_fr', '');
+
+  const BLOB_RADII = [
+    '60% 40% 30% 70% / 60% 30% 70% 40%',
+    '40% 60% 70% 30% / 50% 60% 40% 50%',
+    '55% 45% 65% 35% / 45% 65% 35% 55%',
+  ];
 
   return (
     <main className="min-h-screen bg-[#FAF9F6]">
       
-      {/* SECTION HERO : Format contenu et apaisant (Hauteur réduite & Édition en direct active) */}
+      {/* SECTION HERO */}
       <section className="relative h-[50vh] md:h-[58vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white">
         
-        {/* Image de fond brumeuse cliquable et modifiable en direct */}
         <div
-          onClick={() => {
-            if (isEditing) {
-              onSelectKey('about_hero_image');
-              const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-              fileInput?.click(); // Déclenche l'upload local
-            }
-          }}
+          onClick={() => handleImageClick('about_hero_image')}
           className={`absolute inset-0 bg-cover bg-center ${
             isEditing ? 'cursor-pointer hover:brightness-90' : ''
           } ${isEditing && selectedKey === 'about_hero_image' ? 'ring-4 ring-white/40 ring-inset' : ''}`}
@@ -209,14 +210,11 @@ export default function AboutPage({
           }}
         />
 
-        {/* Voile d'ombrage léger pour une lisibilité parfaite des textes fins */}
         <div className="absolute inset-0 bg-neutral-950/15 pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/50 via-transparent to-neutral-950/15 pointer-events-none" />
 
-        {/* Contenu textuel centré et épuré */}
         <div className="relative z-10 text-center max-w-3xl space-y-4 md:space-y-6 px-4 pt-12 md:pt-16">
           
-          {/* Tagline fine éditable */}
           <span
             contentEditable={isEditing}
             suppressContentEditableWarning={true}
@@ -230,7 +228,6 @@ export default function AboutPage({
             {getContent('about_hero_tagline', language === 'fr' ? 'value_fr' : 'value_en', t.tagline)}
           </span>
 
-          {/* Grand Titre (Cormorant Garamond) éditable */}
           <h1
             contentEditable={isEditing}
             suppressContentEditableWarning={true}
@@ -244,7 +241,6 @@ export default function AboutPage({
             {getContent('about_hero_heading', language === 'fr' ? 'value_fr' : 'value_en', t.heading)}
           </h1>
 
-          {/* Sous-titre descriptif éditable */}
           <p
             contentEditable={isEditing}
             suppressContentEditableWarning={true}
@@ -262,159 +258,50 @@ export default function AboutPage({
 
       </section>
 
-     {/* SECTION : L'ESSENCE DE L'INSTANT (COLLAGE EFFET TIRAGES ÉPARPILLÉS SUR UNE TABLE & TEXTE RICHE DÉTAILLÉ) */}
-<section className="bg-[#FAF9F6] py-20 md:py-32 px-6 lg:px-12 text-neutral-950 border-t border-neutral-200/40">
+     {/* SECTION 1 : L'ESSENCE DE L'INSTANT — Collage asymétrique avec tirages encadrés */}
+<section className="bg-[#E6E3DB] py-20 md:py-32 px-6 lg:px-12 text-neutral-950 border-t border-neutral-200/40">
   <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-24 items-center">
     
-    {/* COLONNE GAUCHE (6/12) : 7 tirages photo d'art éparpillés, superposés et éditables un à un de manière autonome */}
+    {/* COLONNE GAUCHE : 7 tirages éparpillés avec cadre blanc (passe-partout) */}
     <div className="lg:col-span-6 relative w-full h-[450px] md:h-[580px] select-none">
       
-      {/* Photo 1 (Portrait d'âme central gauche) - Inclinaison gauche */}
-      <div 
-        onClick={() => {
-          if (isEditing) {
-            onSelectKey('about_image_0');
-            // Ouvre l'explorateur local de manière autonome sans avoir besoin de référence React
-            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-            fileInput?.click();
-          }
-        }}
-        className={`absolute top-12 left-0 w-[44%] aspect-[3/4] overflow-hidden shadow-md -rotate-3 hover:rotate-0 hover:z-40 transition-all duration-500 cursor-pointer ${
-          isEditing && selectedKey === 'about_image_0' ? 'z-40 ring-4 ring-neutral-400 ring-inset' : 'z-30'
-        }`}
-      >
-        <img
-          src={getContent('about_image_0', 'value_fr', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80')}
-          alt="Portrait d'âme"
-          className="w-full h-full object-cover"
-        />
-      </div>
-
-      {/* Photo 2 (Cérémonie/Mariage bas droit) - Inclinaison droite */}
-      <div 
-        onClick={() => {
-          if (isEditing) {
-            onSelectKey('about_image_1');
-            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-            fileInput?.click();
-          }
-        }}
-        className={`absolute bottom-6 right-0 w-[55%] aspect-[3/2] overflow-hidden shadow-lg rotate-3 hover:rotate-0 hover:z-40 transition-all duration-500 cursor-pointer ${
-          isEditing && selectedKey === 'about_image_1' ? 'z-40 ring-4 ring-neutral-400 ring-inset' : 'z-25'
-        }`}
-      >
-        <img
-          src={getContent('about_image_1', 'value_fr', 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80')}
-          alt="Détail rituel"
-          className="w-full h-full object-cover"
-        />
-      </div>
-
-      {/* Photo 3 (Vague de mer calme, carré) - Inclinaison gauche */}
-      <div 
-        onClick={() => {
-          if (isEditing) {
-            onSelectKey('about_image_2');
-            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-            fileInput?.click();
-          }
-        }}
-        className={`absolute top-45 left-[35%] w-[33%] aspect-[1/1] overflow-hidden opacity-75 shadow-xs -rotate-6 hover:rotate-0 hover:z-40 transition-all duration-500 cursor-pointer ${
-          isEditing && selectedKey === 'about_image_2' ? 'z-40 opacity-100 ring-4 ring-neutral-400 ring-inset' : 'z-10'
-        }`}
-      >
-        <img
-          src={getContent('about_image_2', 'value_fr', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80')}
-          alt="Calme océan"
-          className="w-full h-full object-cover filter grayscale contrast-110"
-        />
-      </div>
-
-      {/* Photo 4 (Nature/Collines vertes, bas gauche) - Inclinaison droite */}
-      <div 
-        onClick={() => {
-          if (isEditing) {
-            onSelectKey('about_image_3');
-            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-            fileInput?.click();
-          }
-        }}
-        className={`absolute bottom-2 left-6 w-[39%] aspect-[3/4] overflow-hidden shadow-md rotate-6 hover:rotate-0 hover:z-40 transition-all duration-500 cursor-pointer ${
-          isEditing && selectedKey === 'about_image_3' ? 'z-40 ring-4 ring-neutral-400 ring-inset' : 'z-20'
-        }`}
-      >
-        <img
-          src={getContent('about_image_3', 'value_fr', 'https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=600&q=80')}
-          alt="Nature sauvage"
-          className="w-full h-full object-cover"
-        />
-      </div>
-
-      {/* Photo 5 (Fumée d'encens et mains rituelles, haut droit) - Inclinaison gauche */}
-      <div 
-        onClick={() => {
-          if (isEditing) {
-            onSelectKey('about_image_4');
-            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-            fileInput?.click();
-          }
-        }}
-        className={`absolute top-4 right-2 w-[46%] aspect-[3/2] overflow-hidden shadow-md -rotate-2 hover:rotate-0 hover:z-40 transition-all duration-500 cursor-pointer ${
-          isEditing && selectedKey === 'about_image_4' ? 'z-40 ring-4 ring-neutral-400 ring-inset' : 'z-30'
-        }`}
-      >
-        <img
-          src={getContent('about_image_4', 'value_fr', 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=600&q=80')}
-          alt="Fumée sacrée"
-          className="w-full h-full object-cover"
-        />
-      </div>
-
-      {/* Photo 6 (Sororité, cercle blanc central droit) - Inclinaison gauche */}
-      <div 
-        onClick={() => {
-          if (isEditing) {
-            onSelectKey('about_image_5');
-            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-            fileInput?.click();
-          }
-        }}
-        className={`absolute top-[30%] right-2 w-[52%] aspect-[3/2] overflow-hidden shadow-sm -rotate-1 hover:rotate-0 hover:z-40 transition-all duration-500 cursor-pointer ${
-          isEditing && selectedKey === 'about_image_5' ? 'z-40 ring-4 ring-neutral-400 ring-inset' : 'z-15'
-        }`}
-      >
-        <img
-          src={getContent('about_image_5', 'value_fr', 'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&w=600&q=80')}
-          alt="Sororité sacrée"
-          className="w-full h-full object-cover"
-        />
-      </div>
-
-      {/* Photo 7 (Portrait intime en noir et blanc, en haut à gauche/milieu) - Inclinaison droite */}
-      <div 
-        onClick={() => {
-          if (isEditing) {
-            onSelectKey('about_image_6');
-            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-            fileInput?.click();
-          }
-        }}
-        className={`absolute top-[-10%] left-[30%] w-[32%] aspect-[3/4] overflow-hidden shadow-xs rotate-6 hover:rotate-0 hover:z-40 transition-all duration-500 cursor-pointer ${
-          isEditing && selectedKey === 'about_image_6' ? 'z-40 opacity-100 ring-4 ring-neutral-400 ring-inset' : 'z-10'
-        }`}
-      >
-        <img
-          src={getContent('about_image_6', 'value_fr', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80')}
-          alt="Portrait intime"
-          className="w-full h-full object-cover filter grayscale contrast-110"
-        />
-      </div>
+      {[0, 1, 2, 3, 4, 5, 6].map((i) => {
+        const positions = [
+          'top-12 left-0 w-[44%] aspect-[3/4] -rotate-3',
+          'bottom-6 right-0 w-[55%] aspect-[3/2] rotate-3',
+          'top-45 left-[35%] w-[33%] aspect-[1/1] -rotate-6 opacity-75',
+          'bottom-2 left-6 w-[39%] aspect-[3/4] rotate-6',
+          'top-4 right-2 w-[46%] aspect-[3/2] -rotate-2',
+          'top-[30%] right-2 w-[52%] aspect-[3/2] -rotate-1',
+          'top-[-10%] left-[30%] w-[32%] aspect-[3/4] rotate-6',
+        ];
+        const selected = isEditing && selectedKey === IMAGE_KEYS[i];
+        return (
+          <div
+            key={i}
+            onClick={() => handleImageClick(IMAGE_KEYS[i])}
+            className={`absolute ${positions[i]} overflow-hidden transition-all duration-500 cursor-pointer ${
+              selected ? 'z-40 ring-4 ring-neutral-400' : 'hover:z-40 hover:rotate-0'
+            }`}
+          >
+            {/* Cadre blanc (passe-partout) */}
+            <div className="bg-white p-2 shadow-md">
+              <div className="aspect-[3/4] overflow-hidden bg-neutral-100 relative">
+                <img
+                  src={getContent(IMAGE_KEYS[i], 'value_fr', IMAGE_FALLBACKS[i])}
+                  alt=""
+                  className={`w-full h-full object-cover ${i === 2 || i === 6 ? 'grayscale contrast-110' : ''}`}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })}
 
     </div>
 
-    {/* COLONNE DROITE (6/12) : Textes descriptifs d'origine éditables en direct */}
+    {/* COLONNE DROITE : Textes */}
     <div className="lg:col-span-6 space-y-6 lg:pl-4 text-left">
-      {/* Tagline de section */}
       <span
         contentEditable={isEditing}
         suppressContentEditableWarning={true}
@@ -428,21 +315,19 @@ export default function AboutPage({
         {getContent('about_tagline', language === 'fr' ? 'value_fr' : 'value_en', aboutVisionTranslations[language].tagline)}
       </span>
 
-      {/* Titre principal de section */}
       <h2
         contentEditable={isEditing}
         suppressContentEditableWarning={true}
         onBlur={(e) => onUpdateText('about_heading', e.currentTarget.innerText || '')}
         onClick={() => isEditing && onSelectKey('about_heading')}
         style={getInlineStyle('about_heading')}
-        className={`p-2 transition-all outline-none rounded-xs whitespace-pre-wrap block leading-tight ${
+        className={`font-serif text-4xl md:text-5xl lg:text-6xl tracking-wide font-light text-neutral-900 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${
           isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
         } ${isEditing && selectedKey === 'about_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
       >
         {getContent('about_heading', language === 'fr' ? 'value_fr' : 'value_en', aboutVisionTranslations[language].heading)}
       </h2>
 
-      {/* Sous-titre */}
       <p
         contentEditable={isEditing}
         suppressContentEditableWarning={true}
@@ -458,7 +343,6 @@ export default function AboutPage({
 
       <div className="w-12 h-[1px] bg-neutral-300" />
       
-      {/* 3 longs paragraphes éditables à l'écran */}
       <div className="space-y-5 font-sans text-sm md:text-base font-light text-neutral-600 leading-relaxed tracking-wide">
         <p
           contentEditable={isEditing}
@@ -500,7 +384,6 @@ export default function AboutPage({
         </p>
       </div>
 
-      {/* Bouton de redirection d'origine */}
       <div className="pt-4">
         <Link
           href="/portfolio"
@@ -514,45 +397,42 @@ export default function AboutPage({
   </div>
 </section>
 
-{/* SECTION : L'EXPÉRIENCE DE L'ESPACE SACRÉ (COMPOSITION DUO ÉPURÉE & TEXTE DYNAMIQUE) */}
-<section className="bg-[#FAF9F6] pt-12 pb-32 md:pb-44 px-6 lg:px-12 text-neutral-950 border-t border-neutral-200/40">
-  <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-24 items-center">
+{/* SECTION 2 : L'EXPÉRIENCE DE L'ESPACE SACRÉ — Arche éditoriale, composition asymétrique */}
+<section className="bg-[#D4D5C8] py-20 md:py-32 px-6 lg:px-12 border-t border-neutral-300/40">
+  <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
     
-    {/* COLONNE GAUCHE (5/12) : Explication de la démarche rituelle éditable */}
-    <div className="lg:col-span-5 space-y-6">
+    {/* COLONNE GAUCHE (5/12) : Texte ajusté */}
+    <div className="lg:col-span-5 space-y-5">
       
-      {/* Tagline de section éditable */}
       <span
         contentEditable={isEditing}
         suppressContentEditableWarning={true}
         onBlur={(e) => onUpdateText('experience_tagline', e.currentTarget.innerText || '')}
         onClick={() => isEditing && onSelectKey('experience_tagline')}
         style={getInlineStyle('experience_tagline')}
-        className={`font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block outline-none rounded-xs whitespace-pre-wrap ${
-          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-        } ${isEditing && selectedKey === 'experience_tagline' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+        className={`font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-500 block outline-none rounded-xs whitespace-pre-wrap ${
+          isEditing ? 'hover:bg-black/5 cursor-text' : ''
+        } ${isEditing && selectedKey === 'experience_tagline' ? 'border border-dashed border-neutral-400 bg-black/5' : ''}`}
       >
         {getContent('experience_tagline', language === 'fr' ? 'value_fr' : 'value_en', aboutExperienceTranslations[language].tagline)}
       </span>
 
-      {/* Titre Principal de section éditable */}
       <h2
         contentEditable={isEditing}
         suppressContentEditableWarning={true}
         onBlur={(e) => onUpdateText('experience_heading', e.currentTarget.innerText || '')}
         onClick={() => isEditing && onSelectKey('experience_heading')}
         style={getInlineStyle('experience_heading')}
-        className={`font-serif text-3xl md:text-4xl tracking-wide font-light text-neutral-900 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${
-          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-        } ${isEditing && selectedKey === 'experience_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+        className={`font-serif text-3xl md:text-4xl lg:text-5xl tracking-wide font-light text-neutral-900 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${
+          isEditing ? 'hover:bg-black/5 cursor-text' : ''
+        } ${isEditing && selectedKey === 'experience_heading' ? 'border border-dashed border-neutral-400 bg-black/5' : ''}`}
       >
         {getContent('experience_heading', language === 'fr' ? 'value_fr' : 'value_en', aboutExperienceTranslations[language].heading)}
       </h2>
 
-      <div className="w-12 h-[1px] bg-neutral-300" />
+      <div className="w-12 h-[1px] bg-neutral-400/50" />
       
-      {/* Paragraphes explicatifs éditables */}
-      <div className="space-y-5 font-sans text-sm md:text-base font-light text-neutral-600 leading-relaxed tracking-wide text-left">
+      <div className="space-y-4 font-sans text-sm md:text-base font-light text-neutral-700 leading-relaxed tracking-wide text-left">
         <p
           contentEditable={isEditing}
           suppressContentEditableWarning={true}
@@ -560,8 +440,8 @@ export default function AboutPage({
           onClick={() => isEditing && onSelectKey('experience_desc1')}
           style={getInlineStyle('experience_desc1')}
           className={`font-medium text-neutral-800 outline-none rounded-xs whitespace-pre-wrap ${
-            isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-          } ${isEditing && selectedKey === 'experience_desc1' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+            isEditing ? 'hover:bg-black/5 cursor-text' : ''
+          } ${isEditing && selectedKey === 'experience_desc1' ? 'border border-dashed border-neutral-400 bg-black/5' : ''}`}
         >
           {getContent('experience_desc1', language === 'fr' ? 'value_fr' : 'value_en', aboutExperienceTranslations[language].description1)}
         </p>
@@ -572,58 +452,50 @@ export default function AboutPage({
           onBlur={(e) => onUpdateText('experience_desc2', e.currentTarget.innerText || '')}
           onClick={() => isEditing && onSelectKey('experience_desc2')}
           style={getInlineStyle('experience_desc2')}
-          className={`font-sans text-sm md:text-base font-light text-neutral-600 leading-relaxed tracking-wide outline-none rounded-xs whitespace-pre-wrap block ${
-            isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-          } ${isEditing && selectedKey === 'experience_desc2' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
+          className={`outline-none rounded-xs whitespace-pre-wrap block ${
+            isEditing ? 'hover:bg-black/5 cursor-text' : ''
+          } ${isEditing && selectedKey === 'experience_desc2' ? 'border border-dashed border-neutral-400 bg-black/5' : ''}`}
         >
           {getContent('experience_desc2', language === 'fr' ? 'value_fr' : 'value_en', aboutExperienceTranslations[language].description2)}
         </p>
       </div>
     </div>
 
-    {/* COLONNE DROITE (7/12) : Composition de 2 images d'art asymétriques superposées et éditables */}
-    <div className="lg:col-span-7 relative w-full flex items-center justify-center py-8">
+    {/* COLONNE DROITE (7/12) : Arche + carré chevauchant */}
+    <div className="lg:col-span-7 flex items-center justify-center">
       
-      {/* Photo Principale (Grand format vertical, lever de soleil brumeux) */}
-      <div 
-        onClick={() => {
-          if (isEditing) {
-            onSelectKey('experience_image_1');
-            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-            fileInput?.click(); // Déclenche l'upload local
-          }
-        }}
-        className={`overflow-hidden aspect-[3/4] relative shadow-sm ${
-          isEditing ? 'cursor-pointer hover:brightness-95' : ''
-        } ${isEditing && selectedKey === 'experience_image_1' ? 'z-30 ring-4 ring-neutral-400 ring-inset w-[62%]' : 'z-10 w-[62%]'}`}
-      >
-        <img
-          src={getContent('experience_image_1', 'value_fr', 'https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?auto=format&fit=crop&w=800&q=80')}
-          alt="Matin calme et brume sacrée"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-neutral-900/5 pointer-events-none" />
-      </div>
+      {/* Conteneur de la composition */}
+      <div className="relative w-full max-w-[500px]">
+        
+        {/* Grande image en arche (rounded-t-full) */}
+        <div
+          onClick={() => handleImageClick('experience_image_1')}
+          className={`relative w-[65%] h-[500px] md:h-[550px] mx-auto overflow-hidden shadow-sm rounded-t-full ${
+            isEditing ? 'cursor-pointer hover:brightness-95' : ''
+          } ${isEditing && selectedKey === 'experience_image_1' ? 'ring-4 ring-neutral-400' : ''}`}
+        >
+          <img
+            src={getContent('experience_image_1', 'value_fr', 'https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?auto=format&fit=crop&w=800&q=80')}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-neutral-900/5 pointer-events-none" />
+        </div>
 
-      {/* Photo Secondaire (Format carré rituels, vient chevaucher doucement) */}
-      <div 
-        onClick={() => {
-          if (isEditing) {
-            onSelectKey('experience_image_2');
-            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-            fileInput?.click();
-          }
-        }}
-        className={`overflow-hidden shadow-lg absolute bottom-[-10px] right-4 md:right-8 transition-all duration-700 ${
-          isEditing ? 'cursor-pointer hover:brightness-95' : 'hover:scale-102'
-        } ${isEditing && selectedKey === 'experience_image_2' ? 'z-40 ring-4 ring-neutral-400 ring-inset w-[42%] aspect-[1/1]' : 'z-20 w-[42%] aspect-[1/1]'}`}
-      >
-        <img
-          src={getContent('experience_image_2', 'value_fr', 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=600&q=80')}
-          alt="Connexion sacrée à la terre"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-neutral-900/5 pointer-events-none" />
+        {/* Petite image carrée chevauchant le bas droit de l'arche */}
+        <div
+          onClick={() => handleImageClick('experience_image_2')}
+          className={`absolute bottom-0 right-0 w-[45%] aspect-square z-20 bg-white p-1 shadow-lg ${
+            isEditing ? 'cursor-pointer hover:brightness-95' : ''
+          } ${isEditing && selectedKey === 'experience_image_2' ? 'ring-4 ring-neutral-400' : ''}`}
+        >
+          <img
+            src={getContent('experience_image_2', 'value_fr', 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=600&q=80')}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        </div>
+
       </div>
 
     </div>
@@ -631,28 +503,40 @@ export default function AboutPage({
   </div>
 </section>
 
-{/* SECTION : LES OUTILS DE L'INVISIBLE (CADRE MARIE-LOUISE AVEC GAP LATÉRAL DYNAMIQUE) */}
-<section className="bg-[#FAF9F6] pt-12 pb-32 md:pb-44 px-6 lg:px-12 text-neutral-950 border-t border-neutral-200/40">
-  <div className="max-w-6xl mx-auto space-y-16 md:space-y-24">
+{/* SECTION 3 : LES OUTILS DE L'INVISIBLE — Formes organiques "blob", fond bicolore */}
+<section className="relative overflow-hidden bg-[#FAF9F6] py-20 md:py-32 px-6 lg:px-12 text-neutral-950 border-t border-neutral-200/40">
+  {/* Texture overlay sur la moitié blanche */}
+  {bgTexture && (
+    <div
+      className="absolute inset-0 z-0 pointer-events-none opacity-60 mix-blend-multiply"
+      style={{
+        backgroundImage: `url(${bgTexture})`,
+        backgroundRepeat: 'repeat',
+        backgroundSize: '500px auto',
+      }}
+    />
+  )}
+
+  {/* Moitié haute beige sable */}
+  <div className="absolute inset-x-0 top-0 h-1/2 bg-[#E6E3DB] z-[1]" />
+
+  <div className="relative z-10 max-w-6xl mx-auto space-y-16 md:space-y-24">
     
-    {/* En-tête de section centré et minimaliste éditable en direct à l'écran */}
     <div className="text-center space-y-4 max-w-xl mx-auto">
       
-      {/* Tagline éditable */}
       <span
         contentEditable={isEditing}
         suppressContentEditableWarning={true}
         onBlur={(e) => onUpdateText('signature_tagline', e.currentTarget.innerText || '')}
         onClick={() => isEditing && onSelectKey('signature_tagline')}
         style={getInlineStyle('signature_tagline')}
-        className={`font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block animate-fade-in outline-none rounded-xs whitespace-pre-wrap ${
+        className={`font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block outline-none rounded-xs whitespace-pre-wrap ${
           isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
         } ${isEditing && selectedKey === 'signature_tagline' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
       >
         {getContent('signature_tagline', language === 'fr' ? 'value_fr' : 'value_en', aboutSignatureTranslations[language].tagline)}
       </span>
 
-      {/* Titre de section éditable */}
       <h2
         contentEditable={isEditing}
         suppressContentEditableWarning={true}
@@ -669,8 +553,7 @@ export default function AboutPage({
       <div className="w-12 h-[1px] bg-neutral-300 mx-auto mt-6" />
     </div>
 
-    {/* GRILLE DES OUTILS DÉTAILLÉE (3 Colonnes avec cadre Pass-Partout blanc d'exposition) */}
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
       {[0, 1, 2].map((index) => {
         const item = aboutSignatureTranslations[language].items[index];
         const imageKey = `signature_image_${index}`;
@@ -680,72 +563,60 @@ export default function AboutPage({
         const isSelected = selectedKey === imageKey;
 
         return (
-          <div 
-            key={index} 
-            className="flex flex-col space-y-6 group text-left"
-          >
-            {/* Cadre Marie-Louise cliquable et modifiable de manière autonome */}
-            <div 
-              onClick={() => {
-                if (isEditing) {
-                  onSelectKey(imageKey);
-                  const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-                  fileInput?.click(); // Déclenche l'upload local
-                }
-              }}
-              className={`bg-white p-4 shadow-sm border transition-all duration-500 cursor-pointer ${
+          <div key={index} className="flex flex-col items-center text-center group">
+            {/* Forme organique "blob" */}
+            <div
+              onClick={() => handleImageClick(imageKey)}
+              className={`overflow-hidden shadow-sm transition-all duration-500 cursor-pointer w-full ${
                 isEditing ? 'hover:shadow-md' : 'hover:shadow-md'
-              } ${isEditing && isSelected ? 'ring-4 ring-neutral-400 ring-inset border-transparent' : 'border-neutral-200/10'}`}
+              } ${isEditing && isSelected ? 'ring-4 ring-neutral-400' : ''}`}
+              style={{ borderRadius: BLOB_RADII[index] }}
             >
-              <div className="overflow-hidden aspect-[3/4] relative">
+              <div className="aspect-[3/4] relative">
                 <img
                   src={getContent(imageKey, 'value_fr', item.imageUrl)}
                   alt={item.title}
-                  className="w-full h-full object-cover transition-transform duration-[1800ms] ease-out group-hover:scale-102"
+                  className="w-full h-full object-cover transition-transform duration-[1800ms] ease-out group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-neutral-900/5 pointer-events-none" />
               </div>
             </div>
 
-            {/* Descriptif simple, ultra-lisible et éditable au clic */}
-            <div className="space-y-2 px-1">
+            <div className="space-y-2 px-1 mt-8">
               
-              {/* Sous-titre éditable */}
               <span
                 contentEditable={isEditing}
                 suppressContentEditableWarning={true}
                 onBlur={(e) => onUpdateText(subtitleKey, e.currentTarget.innerText || '')}
                 onClick={() => isEditing && onSelectKey(subtitleKey)}
                 style={getInlineStyle(subtitleKey)}
-                className={`font-sans text-[10px] tracking-[0.25em] uppercase text-neutral-400 font-light block outline-none rounded-xs whitespace-pre-wrap ${
+                className={`font-sans text-xs tracking-[0.25em] uppercase text-neutral-800 font-light block outline-none rounded-xs whitespace-pre-wrap ${
                   isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
                 } ${isEditing && selectedKey === subtitleKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
               >
                 {getContent(subtitleKey, language === 'fr' ? 'value_fr' : 'value_en', item.subtitle)}
               </span>
 
-              {/* Titre éditable */}
               <h3
                 contentEditable={isEditing}
                 suppressContentEditableWarning={true}
                 onBlur={(e) => onUpdateText(titleKey, e.currentTarget.innerText || '')}
                 onClick={() => isEditing && onSelectKey(titleKey)}
                 style={getInlineStyle(titleKey)}
-                className={`font-serif text-xl md:text-2xl tracking-wide font-light text-neutral-900 leading-snug outline-none rounded-xs whitespace-pre-wrap block ${
+                className={`font-serif text-2xl md:text-3xl tracking-wide font-light text-black leading-snug outline-none rounded-xs whitespace-pre-wrap block ${
                   isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
                 } ${isEditing && selectedKey === titleKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
               >
                 {getContent(titleKey, language === 'fr' ? 'value_fr' : 'value_en', item.title)}
               </h3>
 
-              {/* Description longue éditable */}
               <p
                 contentEditable={isEditing}
                 suppressContentEditableWarning={true}
                 onBlur={(e) => onUpdateText(descKey, e.currentTarget.innerText || '')}
                 onClick={() => isEditing && onSelectKey(descKey)}
                 style={getInlineStyle(descKey)}
-                className={`font-sans text-xs md:text-sm font-light text-neutral-500 leading-relaxed tracking-wide pt-2 outline-none rounded-xs whitespace-pre-wrap block ${
+                className={`font-sans text-sm md:text-base font-light text-neutral-900 leading-relaxed tracking-wide pt-2 outline-none rounded-xs whitespace-pre-wrap block ${
                   isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
                 } ${isEditing && selectedKey === descKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
               >
@@ -762,19 +633,12 @@ export default function AboutPage({
   </div>
 </section>
 
-{/* SECTION : CALL TO ACTION D'À PROPOS (L'INVITATION SACRÉE DYNAMIQUE SUR GRANDE PHOTO PANORAMIQUE) */}
+{/* SECTION CTA */}
 <section className="relative h-[65vh] md:h-[75vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white">
   
-  {/* Grande image panoramique spirituelle en arrière-plan (Cliquable et modifiable de manière autonome d'À Propos) */}
   <div
-    onClick={() => {
-      if (isEditing) {
-        onSelectKey('about_cta_bg_image');
-        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-        fileInput?.click(); // Déclenche l'upload local
-      }
-    }}
-    className={`absolute inset-0 transition-transform duration-[4000ms] ease-out group-hover:scale-105 bg-cover bg-center ${
+    onClick={() => handleImageClick('about_cta_bg_image')}
+    className={`absolute inset-0 bg-cover bg-center transition-transform duration-[4000ms] ease-out ${
       isEditing ? 'cursor-pointer hover:brightness-90' : ''
     } ${isEditing && selectedKey === 'about_cta_bg_image' ? 'ring-4 ring-white/40 ring-inset' : ''}`}
     style={{
@@ -782,14 +646,11 @@ export default function AboutPage({
     }}
   />
 
-  {/* Double couche d'assombrissement renforcée pour faire ressortir le texte blanc */}
   <div className="absolute inset-0 bg-neutral-950/50 pointer-events-none" />
   <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/10 via-black/10 to-neutral-950/10 pointer-events-none" />
 
-  {/* Contenu de l'invitation */}
   <div className="relative z-10 text-center max-w-3xl space-y-6 md:space-y-8 px-4">
     
-    {/* Tagline éditable en direct */}
     <span
       contentEditable={isEditing}
       suppressContentEditableWarning={true}
@@ -797,13 +658,12 @@ export default function AboutPage({
       onClick={() => isEditing && onSelectKey('about_cta_tagline')}
       style={getInlineStyle('about_cta_tagline')}
       className={`font-sans text-xs md:text-sm tracking-[0.35em] uppercase font-light text-neutral-300 block outline-none rounded-xs whitespace-pre-wrap ${
-        isEditing ? 'hover:bg-white/10 cursor-text animate-none' : 'animate-pulse'
+        isEditing ? 'hover:bg-white/10 cursor-text' : ''
       } ${isEditing && selectedKey === 'about_cta_tagline' ? 'border border-dashed border-white bg-white/10' : ''}`}
     >
       {getContent('about_cta_tagline', language === 'fr' ? 'value_fr' : 'value_en', ctaSectionTranslations[language].tagline)}
     </span>
 
-    {/* Grand Titre artistique bien visible (Cormorant Garamond) éditable */}
     <h2
       contentEditable={isEditing}
       suppressContentEditableWarning={true}
@@ -817,7 +677,6 @@ export default function AboutPage({
       {getContent('about_cta_heading', language === 'fr' ? 'value_fr' : 'value_en', ctaSectionTranslations[language].heading)}
     </h2>
 
-    {/* Descriptif poétique éditable */}
     <p
       contentEditable={isEditing}
       suppressContentEditableWarning={true}
@@ -831,14 +690,11 @@ export default function AboutPage({
       {getContent('about_cta_description', language === 'fr' ? 'value_fr' : 'value_en', ctaSectionTranslations[language].description)}
     </p>
 
-    {/* Bouton d'action minimaliste et élégant (Texte du bouton éditable au clic) */}
     <div className="pt-4">
       <Link
         href="/contact"
         onClick={(e) => {
-          if (isEditing) {
-            e.preventDefault(); // Évite la redirection de page lors de l'édition
-          }
+          if (isEditing) e.preventDefault();
         }}
         className="bg-white/10 backdrop-blur-md border border-white/40 text-white text-[10px] md:text-xs uppercase tracking-[0.25em] font-light px-10 py-4 hover:bg-white hover:text-neutral-900 hover:border-white transition-all duration-500 inline-block rounded-none shadow-md cursor-pointer"
       >
@@ -858,133 +714,13 @@ export default function AboutPage({
   </div>
 </section>
 
-{/* SECTION : INTEGRATION INSTAGRAM D'À PROPOS (LUMIÈRE & COMMUNION GLOBALE) */}
-<section className="bg-[#FAF9F6] pt-12 pb-8 md:pb-12 px-4 md:px-8 border-t border-neutral-200/40">
-  <div className="w-full space-y-16">
-    
-    {/* En-tête de section avec votre nom de compte IG mis en valeur et éditable */}
-    <div className="text-center space-y-4 max-w-xl mx-auto">
-      
-      {/* Tagline éditable */}
-      <span
-        contentEditable={isEditing}
-        suppressContentEditableWarning={true}
-        onBlur={(e) => onUpdateText('instagram_tagline', e.currentTarget.innerText || '')}
-        onClick={() => isEditing && onSelectKey('instagram_tagline')}
-        style={getInlineStyle('instagram_tagline')}
-        className={`font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block outline-none rounded-xs whitespace-pre-wrap ${
-          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-        } ${isEditing && selectedKey === 'instagram_tagline' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
-      >
-        {getContent('instagram_tagline', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].tagline)}
-      </span>
-
-      {/* Titre de section éditable */}
-      <h2
-        contentEditable={isEditing}
-        suppressContentEditableWarning={true}
-        onBlur={(e) => onUpdateText('instagram_heading', e.currentTarget.innerText || '')}
-        onClick={() => isEditing && onSelectKey('instagram_heading')}
-        style={getInlineStyle('instagram_heading')}
-        className={`font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${
-          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-        } ${isEditing && selectedKey === 'instagram_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
-      >
-        {getContent('instagram_heading', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].heading)}
-      </h2>
-      
-      {/* Votre lien de compte Instagram artistique éditable en direct */}
-      <div className="pt-2">
-        <a 
-          href="https://www.instagram.com/animaelumen" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          onClick={(e) => {
-            if (isEditing) {
-              e.preventDefault(); // Évite la redirection lors du clic en mode édition
-              onSelectKey('instagram_handle');
-            }
-          }}
-          className="font-serif text-xl md:text-2xl italic font-light text-neutral-600 hover:text-neutral-900 transition-colors duration-300 underline underline-offset-8 inline-block"
-        >
-          <span
-            contentEditable={isEditing}
-            suppressContentEditableWarning={true}
-            onBlur={(e) => onUpdateText('instagram_handle', e.currentTarget.innerText || '')}
-            style={getInlineStyle('instagram_handle')}
-            className={`outline-none whitespace-pre-wrap ${isEditing ? 'cursor-text' : ''}`}
-          >
-            {getContent('instagram_handle', 'value_fr', '@animaelumen')}
-          </span>
-        </a>
-      </div>
-
-      {/* Paragraphe descriptif éditable sous le lien */}
-      <p
-        contentEditable={isEditing}
-        suppressContentEditableWarning={true}
-        onBlur={(e) => onUpdateText('instagram_subheading', e.currentTarget.innerText || '')}
-        onClick={() => isEditing && onSelectKey('instagram_subheading')}
-        style={getInlineStyle('instagram_subheading')}
-        className={`font-sans text-xs md:text-sm font-light text-neutral-500 tracking-wide max-w-xs mx-auto pt-4 outline-none rounded-xs whitespace-pre-wrap block ${
-          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-        } ${isEditing && selectedKey === 'instagram_subheading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
-      >
-        {getContent('instagram_subheading', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].subheading)}
-      </p>
-      
-      <div className="w-12 h-[1px] bg-neutral-300 mx-auto mt-6" />
-    </div>
-
-    {/* CONTAINER DU WIDGET FOUITA (Intact et sécurisé) */}
-    <div className="max-w-[90rem] mx-auto w-full px-2 md:px-6">
-      <div className="w-full h-auto">
-        
-        {/* Balise du widget Fouita */}
-        <div 
-          data-key="Masonry Instagram Feed" 
-          className="ft" 
-          id="ftuaxm8l1"
-        />
-
-        {/* Script d'intégration Fouita */}
-        <Script 
-          src="https://wdg.fouita.com/widgets/0x48d497.js"
-          strategy="lazyOnload"
-        />
-
-      </div>
-    </div>
-
-    {/* Bouton d'invitation à s'abonner (Texte du bouton éditable au clic) */}
-    <div className="text-center pt-4">
-      <a
-        href="https://www.instagram.com/animaelumen"
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => {
-          if (isEditing) {
-            e.preventDefault(); // Évite la redirection en mode édition
-            onSelectKey('instagram_button_text');
-          }
-        }}
-        className="text-[10px] md:text-xs uppercase tracking-[0.25em] font-light text-neutral-800 border border-neutral-800/30 px-8 py-3.5 hover:bg-neutral-800 hover:text-white hover:border-neutral-800 transition-all duration-500 inline-block rounded-none cursor-pointer"
-      >
-        <span
-          contentEditable={isEditing}
-          suppressContentEditableWarning={true}
-          onBlur={(e) => onUpdateText('instagram_button_text', e.currentTarget.innerText || '')}
-          style={getInlineStyle('instagram_button_text')}
-          className={`outline-none whitespace-pre-wrap ${isEditing ? 'cursor-text' : ''}`}
-        >
-          {getContent('instagram_button_text', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].buttonText)}
-        </span>
-      </a>
-    </div>
-
-  </div>
-</section>
-
+    <InstagramSection
+      dbContent={dbContent}
+      isEditing={isEditing}
+      onUpdateText={onUpdateText}
+      onSelectKey={onSelectKey}
+      selectedKey={selectedKey}
+    />
     </main>
   );
 }

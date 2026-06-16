@@ -1,9 +1,10 @@
 'use client';
 
 import { useLanguage } from '@/context/LanguageContext';
-import Script from 'next/script';
 import { supabase } from '@/lib/supabase';
-import { useState, useEffect } from 'react'; 
+import { useState, useEffect } from 'react';
+import InstagramSection from '@/components/InstagramSection';
+
 
 // 1. Traductions de la section Hero de Contact
 const contactHeroTranslations = {
@@ -107,9 +108,9 @@ export default function ContactPage({
   const t = contactHeroTranslations[language];
 
   return (
-    <main className="min-h-screen bg-[#FAF9F6]">
+    <main className="min-h-screen bg-[#FAF9F6] relative">
       
-      {/* SECTION HERO : Hauteur identique à À Propos (Brume matinale dorée, Édition active) */}
+      {/* SECTION HERO */}
       <section className="relative h-[50vh] md:h-[58vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white">
         
         {/* Image de fond cliquable et modifiable en direct */}
@@ -466,133 +467,15 @@ export default function ContactPage({
   </div>
 </section>
 
-{/* SECTION : INTEGRATION INSTAGRAM DYNAMIQUE SUR LA PAGE CONTACT */}
-<section className="bg-[#FAF9F6] pt-12 pb-8 md:pb-12 px-4 md:px-8 border-t border-neutral-200/40">
-  <div className="w-full space-y-16">
-    
-    {/* En-tête de section éditable au clic */}
-    <div className="text-center space-y-4 max-w-xl mx-auto">
-      
-      {/* Tagline de section éditable */}
-      <span
-        contentEditable={isEditing}
-        suppressContentEditableWarning={true}
-        onBlur={(e) => onUpdateText('instagram_tagline', e.currentTarget.innerText || '')}
-        onClick={() => isEditing && onSelectKey('instagram_tagline')}
-        style={getInlineStyle('instagram_tagline')}
-        className={`font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block outline-none rounded-xs whitespace-pre-wrap ${
-          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-        } ${isEditing && selectedKey === 'instagram_tagline' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
-      >
-        {getContent('instagram_tagline', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].tagline)}
-      </span>
 
-      {/* Titre de section éditable */}
-      <h2
-        contentEditable={isEditing}
-        suppressContentEditableWarning={true}
-        onBlur={(e) => onUpdateText('instagram_heading', e.currentTarget.innerText || '')}
-        onClick={() => isEditing && onSelectKey('instagram_heading')}
-        style={getInlineStyle('instagram_heading')}
-        className={`font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${
-          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-        } ${isEditing && selectedKey === 'instagram_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
-      >
-        {getContent('instagram_heading', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].heading)}
-      </h2>
-      
-      {/* Lien de compte Instagram artistique éditable en direct */}
-      <div className="pt-2">
-        <a 
-          href="https://www.instagram.com/animaelumen" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          onClick={(e) => {
-            if (isEditing) {
-              e.preventDefault(); // Évite l'ouverture d'Instagram lors de l'édition
-              onSelectKey('instagram_handle');
-            }
-          }}
-          className="font-serif text-xl md:text-2xl italic font-light text-neutral-600 hover:text-neutral-900 transition-colors duration-300 underline underline-offset-8 inline-block"
-        >
-          <span
-            contentEditable={isEditing}
-            suppressContentEditableWarning={true}
-            onBlur={(e) => onUpdateText('instagram_handle', e.currentTarget.innerText || '')}
-            style={getInlineStyle('instagram_handle')}
-            className={`outline-none whitespace-pre-wrap ${isEditing ? 'cursor-text' : ''}`}
-          >
-            {getContent('instagram_handle', 'value_fr', '@animaelumen')}
-          </span>
-        </a>
-      </div>
 
-      {/* Descriptif d'invitation éditable */}
-      <p
-        contentEditable={isEditing}
-        suppressContentEditableWarning={true}
-        onBlur={(e) => onUpdateText('instagram_subheading', e.currentTarget.innerText || '')}
-        onClick={() => isEditing && onSelectKey('instagram_subheading')}
-        style={getInlineStyle('instagram_subheading')}
-        className={`font-sans text-xs md:text-sm font-light text-neutral-500 tracking-wide max-w-xs mx-auto pt-4 outline-none rounded-xs whitespace-pre-wrap block ${
-          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-        } ${isEditing && selectedKey === 'instagram_subheading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
-      >
-        {getContent('instagram_subheading', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].subheading)}
-      </p>
-      
-      <div className="w-12 h-[1px] bg-neutral-300 mx-auto mt-6" />
-    </div>
-
-    {/* CONTAINER AJUSTÉ DU WIDGET FOUITA (Intact et sécurisé) */}
-    <div className="max-w-[90rem] mx-auto w-full px-2 md:px-6">
-      <div className="w-full h-auto">
-        
-        {/* Balise du widget Fouita */}
-        <div 
-          data-key="Masonry Instagram Feed" 
-          className="ft" 
-          id="ftuaxm8l1"
-        />
-
-        {/* Script d'intégration Fouita */}
-        <Script 
-          src="https://wdg.fouita.com/widgets/0x48d497.js"
-          strategy="lazyOnload"
-        />
-
-      </div>
-    </div>
-
-    {/* Bouton d'invitation à s'abonner (Texte éditable au clic) */}
-    <div className="text-center pt-4">
-      <a
-        href="https://www.instagram.com/animaelumen"
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => {
-          if (isEditing) {
-            e.preventDefault(); // Évite la redirection en mode édition
-            onSelectKey('instagram_button_text');
-          }
-        }}
-        className="text-[10px] md:text-xs uppercase tracking-[0.25em] font-light text-neutral-800 border border-neutral-800/30 px-8 py-3.5 hover:bg-neutral-800 hover:text-white hover:border-neutral-800 transition-all duration-500 inline-block rounded-none cursor-pointer"
-      >
-        <span
-          contentEditable={isEditing}
-          suppressContentEditableWarning={true}
-          onBlur={(e) => onUpdateText('instagram_button_text', e.currentTarget.innerText || '')}
-          style={getInlineStyle('instagram_button_text')}
-          className={`outline-none whitespace-pre-wrap ${isEditing ? 'cursor-text' : ''}`}
-        >
-          {getContent('instagram_button_text', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].buttonText)}
-        </span>
-      </a>
-    </div>
-
-  </div>
-</section>
-
+    <InstagramSection
+      dbContent={dbContent}
+      isEditing={isEditing}
+      onUpdateText={onUpdateText}
+      onSelectKey={onSelectKey}
+      selectedKey={selectedKey}
+    />
     </main>
   );
 }

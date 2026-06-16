@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
-import Script from 'next/script';
+
 import { supabase } from '@/lib/supabase';
-import { useState, useEffect } from 'react'; // Assurez-vous d'avoir importé ces deux hooks de React !
+import InstagramSection from '@/components/InstagramSection';
+import { useState, useEffect } from 'react';
+
 // 1. Traductions de la section Hero du Portfolio
 const portfolioHeroTranslations = {
   fr: {
@@ -60,21 +62,6 @@ const ctaSectionTranslations = {
     heading: "Co-creating a space of presence",
     description: "Are you hosting a transformational retreat, celebrating a sacred union, or feeling the calling to honor your essence through a therapeutic portrait? Let us write the visual testament of your light together.",
     buttonText: "Begin the journey →",
-  }
-};
-
-const instagramSectionTranslations = {
-  fr: {
-    tagline: "Le voyage continue",
-    heading: "Rejoindre le cercle",
-    subheading: "Plongez quotidiennement dans la poésie de l'invisible, du silence et de la présence pure.",
-    buttonText: "Suivre sur Instagram",
-  },
-  en: {
-    tagline: "The journey continues",
-    heading: "Join the circle",
-    subheading: "Dive daily into the poetry of the unseen, silence, and pure presence.",
-    buttonText: "Follow on Instagram",
   }
 };
 
@@ -145,9 +132,9 @@ const filteredProjects = filter === 'all'
   : portfolios.filter(project => project.category === filter);
 
   return (
-    <main className="min-h-screen bg-[#FAF9F6] pb-0">
+    <main className="min-h-screen bg-[#FAF9F6] pb-0 relative">
       
-      {/* SECTION HERO : Hauteur identique (Coucher de soleil méditatif d'origine, Édition active au clic) */}
+      {/* SECTION HERO */}
       <section className="relative h-[50vh] md:h-[58vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white">
         
         {/* Image de fond cliquable et modifiable en direct par l'admin */}
@@ -219,20 +206,21 @@ const filteredProjects = filter === 'all'
         </div>
       </section>
 
-      {/* SECTION : GRILLE FILTRABLE (PC : 4 COLONNES COMPACTES - 32 RÉALISATIONS) */}
-{/* SECTION : GRILLE FILTRABLE DYNAMIQUE */}
-      <section className="max-w-[85rem] mx-auto pt-16 md:pt-20 pb-12 md:pb-16 px-4 md:px-8 space-y-16">
+      {/* SECTION : GRILLE FILTRABLE DYNAMIQUE */}
+      <section className="max-w-[85rem] mx-auto pt-12 md:pt-16 pb-12 md:pb-16 px-4 md:px-8">
         
-        {/* Menu de Filtrage */}
-        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 border-b border-neutral-200/50 pb-6">
+        {/* Filtre Sticky — Mobile swipe / Desktop centré */}
+        <div className="sticky top-0 z-30 bg-[#FAF9F6]/95 backdrop-blur-md py-4 mb-8 flex overflow-x-auto whitespace-nowrap scrollbar-hide snap-x md:justify-center border-b border-neutral-200/50 px-4 md:px-0">
           {(['all', 'retreats', 'ceremonies', 'festivals', 'portraits'] as const).map((cat) => {
             const isActive = filter === cat;
             return (
               <button
                 key={cat}
                 onClick={() => setFilter(cat)}
-                className={`font-sans text-[10px] md:text-xs tracking-[0.2em] uppercase pb-2 transition-all duration-300 cursor-pointer ${
-                  isActive ? 'text-neutral-950 font-semibold border-b border-neutral-950 opacity-100' : 'text-neutral-800 opacity-80 hover:opacity-100 hover:text-neutral-950'
+                className={`snap-start shrink-0 font-sans text-[10px] md:text-xs tracking-[0.2em] uppercase pb-1 transition-all duration-300 ease-in-out cursor-pointer mr-8 last:mr-0 ${
+                  isActive
+                    ? 'text-neutral-900 font-semibold border-b border-neutral-900'
+                    : 'text-neutral-500 opacity-70 hover:opacity-100 hover:text-neutral-900'
                 }`}
               >
                 {t[cat]}
@@ -241,8 +229,8 @@ const filteredProjects = filter === 'all'
           })}
         </div>
 
-        {/* Grille dynamique venant de Supabase */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-12">
+        {/* Grille des projets filtrés */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
           {filteredProjects.map((project: any) => (
             <div 
               key={project.id} 
@@ -374,113 +362,15 @@ const filteredProjects = filter === 'all'
   </div>
 </section>
 
-{/* SECTION : INTEGRATION INSTAGRAM MASONRY FOUITA (LARGEUR AJUSTÉE SANS VIDE) */}
-{/* SECTION : INTEGRATION INSTAGRAM DYNAMIQUE */}
-<section className="bg-[#FAF9F6] pt-12 pb-8 md:pb-12 px-4 md:px-8 border-t border-neutral-200/40">
-  <div className="w-full space-y-16">
-    
-    {/* En-tête de section éditable */}
-    <div className="text-center space-y-4 max-w-xl mx-auto">
-      
-      {/* Tagline éditable */}
-      <span
-        contentEditable={isEditing}
-        suppressContentEditableWarning={true}
-        onBlur={(e) => onUpdateText('insta_tagline', e.currentTarget.innerText || '')}
-        onClick={() => isEditing && onSelectKey('insta_tagline')}
-        style={getInlineStyle('insta_tagline')}
-        className={`font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block outline-none rounded-xs whitespace-pre-wrap ${
-          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-        } ${isEditing && selectedKey === 'insta_tagline' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
-      >
-        {getContent('insta_tagline', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].tagline)}
-      </span>
 
-      {/* Heading éditable */}
-      <h2
-        contentEditable={isEditing}
-        suppressContentEditableWarning={true}
-        onBlur={(e) => onUpdateText('insta_heading', e.currentTarget.innerText || '')}
-        onClick={() => isEditing && onSelectKey('insta_heading')}
-        style={getInlineStyle('insta_heading')}
-        className={`font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${
-          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-        } ${isEditing && selectedKey === 'insta_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
-      >
-        {getContent('insta_heading', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].heading)}
-      </h2>
-      
-      {/* Nom du compte éditable */}
-      <div className="pt-2">
-        <a 
-          href="https://www.instagram.com/animaelumen" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          onClick={(e) => isEditing && e.preventDefault()}
-          className="font-serif text-xl md:text-2xl italic font-light text-neutral-600 hover:text-neutral-900 transition-colors duration-300 underline underline-offset-8 inline-block"
-        >
-          <span
-            contentEditable={isEditing}
-            suppressContentEditableWarning={true}
-            onBlur={(e) => onUpdateText('insta_handle', e.currentTarget.innerText || '')}
-            onClick={() => isEditing && onSelectKey('insta_handle')}
-            style={getInlineStyle('insta_handle')}
-            className={`outline-none whitespace-pre-wrap ${isEditing ? 'cursor-text' : ''}`}
-          >
-            {getContent('insta_handle', 'value_fr', '@animaelumen')}
-          </span>
-        </a>
-      </div>
 
-      {/* Subheading éditable */}
-      <p
-        contentEditable={isEditing}
-        suppressContentEditableWarning={true}
-        onBlur={(e) => onUpdateText('insta_subheading', e.currentTarget.innerText || '')}
-        onClick={() => isEditing && onSelectKey('insta_subheading')}
-        style={getInlineStyle('insta_subheading')}
-        className={`font-sans text-xs md:text-sm font-light text-neutral-500 tracking-wide max-w-xs mx-auto pt-4 outline-none rounded-xs whitespace-pre-wrap ${
-          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-        } ${isEditing && selectedKey === 'insta_subheading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
-      >
-        {getContent('insta_subheading', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].subheading)}
-      </p>
-      
-      <div className="w-12 h-[1px] bg-neutral-300 mx-auto mt-6" />
-    </div>
-
-    {/* CONTAINER INSTAGRAM (Widget Fouita inchangé) */}
-    <div className="max-w-[90rem] mx-auto w-full px-2 md:px-6">
-      <div className="w-full h-auto">
-        <div data-key="Masonry Instagram Feed" className="ft" id="ftuaxm8l1" />
-        <Script src="https://wdg.fouita.com/widgets/0x48d497.js" strategy="lazyOnload" />
-      </div>
-    </div>
-
-    {/* Bouton d'invitation éditable */}
-    <div className="text-center pt-4">
-      <a
-        href="https://www.instagram.com/animaelumen"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-[10px] md:text-xs uppercase tracking-[0.25em] font-light text-neutral-800 border border-neutral-800/30 px-8 py-3.5 hover:bg-neutral-800 hover:text-white hover:border-neutral-800 transition-all duration-500 inline-block rounded-none cursor-pointer"
-      >
-        <span
-          contentEditable={isEditing}
-          suppressContentEditableWarning={true}
-          onBlur={(e) => onUpdateText('insta_button_text', e.currentTarget.innerText || '')}
-          onClick={() => isEditing && onSelectKey('insta_button_text')}
-          style={getInlineStyle('insta_button_text')}
-          className={`outline-none whitespace-pre-wrap ${isEditing ? 'cursor-text' : ''}`}
-        >
-          {getContent('insta_button_text', language === 'fr' ? 'value_fr' : 'value_en', instagramSectionTranslations[language].buttonText)}
-        </span>
-      </a>
-    </div>
-
-  </div>
-</section>
-
+    <InstagramSection
+      dbContent={dbContent}
+      isEditing={isEditing}
+      onUpdateText={onUpdateText}
+      onSelectKey={onSelectKey}
+      selectedKey={selectedKey}
+    />
     </main>
   );
 }

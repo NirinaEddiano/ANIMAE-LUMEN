@@ -9,10 +9,24 @@ interface LanguageContextProps {
   setLanguage: (lang: Language) => void;
 }
 
+const STORAGE_KEY = 'animae-lumen-lang';
+
 const LanguageContext = createContext<LanguageContextProps | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<Language>('fr');
+  const [language, setLanguageState] = useState<Language>('fr');
+
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'fr' || stored === 'en') {
+      setLanguageState(stored);
+    }
+  }, []);
+
+  const setLanguage = (lang: Language) => {
+    setLanguageState(lang);
+    localStorage.setItem(STORAGE_KEY, lang);
+  };
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage }}>
