@@ -259,7 +259,15 @@ export default function AboutPage({
       </section>
 
      {/* SECTION 1 : L'ESSENCE DE L'INSTANT — Collage asymétrique avec tirages encadrés */}
-<section className="bg-[#E6E3DB] py-20 md:py-32 px-6 lg:px-12 text-neutral-950 border-t border-neutral-200/40">
+<section className="relative overflow-hidden bg-[#E6E3DB] py-20 md:py-32 px-6 lg:px-12 text-neutral-950 border-t border-neutral-200/40">
+  <div
+    className="absolute inset-0 z-0 pointer-events-none opacity-[0.55] mix-blend-multiply"
+    style={{
+      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='3' result='noise'/%3E%3CfeDiffuseLighting in='noise' lighting-color='%23ffffff' surfaceScale='1.2'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)'/%3E%3C/svg%3E")`,
+      backgroundRepeat: 'repeat',
+      backgroundSize: '180px 180px',
+    }}
+  />
   <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-24 items-center">
     
     {/* COLONNE GAUCHE : 7 tirages éparpillés avec cadre blanc (passe-partout) */}
@@ -398,7 +406,15 @@ export default function AboutPage({
 </section>
 
 {/* SECTION 2 : L'EXPÉRIENCE DE L'ESPACE SACRÉ — Arche éditoriale, composition asymétrique */}
-<section className="bg-[#D4D5C8] py-20 md:py-32 px-6 lg:px-12 border-t border-neutral-300/40">
+<section className="relative overflow-hidden bg-[#D4D5C8] py-20 md:py-32 px-6 lg:px-12 border-t border-neutral-300/40">
+  <div
+    className="absolute inset-0 z-0 pointer-events-none opacity-[0.55] mix-blend-multiply"
+    style={{
+      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='3' result='noise'/%3E%3CfeDiffuseLighting in='noise' lighting-color='%23ffffff' surfaceScale='1.2'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)'/%3E%3C/svg%3E")`,
+      backgroundRepeat: 'repeat',
+      backgroundSize: '180px 180px',
+    }}
+  />
   <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
     
     {/* COLONNE GAUCHE (5/12) : Texte ajusté */}
@@ -505,20 +521,19 @@ export default function AboutPage({
 
 {/* SECTION 3 : LES OUTILS DE L'INVISIBLE — Formes organiques "blob", fond bicolore */}
 <section className="relative overflow-hidden bg-[#FAF9F6] py-20 md:py-32 px-6 lg:px-12 text-neutral-950 border-t border-neutral-200/40">
-  {/* Texture overlay sur la moitié blanche */}
-  {bgTexture && (
-    <div
-      className="absolute inset-0 z-0 pointer-events-none opacity-60 mix-blend-multiply"
-      style={{
-        backgroundImage: `url(${bgTexture})`,
-        backgroundRepeat: 'repeat',
-        backgroundSize: '500px auto',
-      }}
-    />
-  )}
 
   {/* Moitié haute beige sable */}
   <div className="absolute inset-x-0 top-0 h-1/2 bg-[#E6E3DB] z-[1]" />
+
+  {/* Texture d'art neutre diffusée sur l'ensemble des deux moitiés */}
+  <div
+    className="absolute inset-0 z-[2] pointer-events-none opacity-[0.55] mix-blend-multiply"
+    style={{
+      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='3' result='noise'/%3E%3CfeDiffuseLighting in='noise' lighting-color='%23ffffff' surfaceScale='1.2'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)'/%3E%3C/svg%3E")`,
+      backgroundRepeat: 'repeat',
+      backgroundSize: '180px 180px',
+    }}
+  />
 
   <div className="relative z-10 max-w-6xl mx-auto space-y-16 md:space-y-24">
     

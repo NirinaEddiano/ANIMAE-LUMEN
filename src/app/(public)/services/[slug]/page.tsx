@@ -173,17 +173,15 @@ export default function ServiceCategoryPage({
       </section>
 
       {/* === GRILLE DES PORTFOLIOS === */}
-      <section className="relative w-full bg-[#FAF9F6] overflow-hidden">
-        {portfolioGridTexture && (
-          <div
-            className="absolute inset-0 z-0 pointer-events-none opacity-60 mix-blend-multiply"
-            style={{
-              backgroundImage: `url(${portfolioGridTexture})`,
-              backgroundRepeat: 'repeat',
-              backgroundSize: '500px auto',
-            }}
-          />
-        )}
+      <section 
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='3' result='noise'/%3E%3CfeDiffuseLighting in='noise' lighting-color='%23F7F5F0' surfaceScale='1.0'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat', // Force la répétition pour éviter le flou étiré
+          backgroundSize: '180px 180px', // Garde un grain de papier fin et précis
+        }}
+        className="relative w-full overflow-hidden"
+      >
+        {/* L'ancienne div de texture dynamique "portfolioGridTexture" a été supprimée pour éliminer l'ancien grain artificiel */}
 
         <div className="relative z-10 max-w-[85rem] mx-auto pt-16 md:pt-20 pb-16 md:pb-24 px-4 md:px-8">
         {portfolios.length === 0 ? (

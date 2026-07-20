@@ -222,7 +222,15 @@ export default function ContactPage({
       </section>
 
      {/* SECTION : FORMULAIRE DE CONTACT DYNAMIQUE (LAYOUT FLEX ASYMÉTRIQUE AVEC 2 PHOTOS) */}
-<section className="bg-[#FAF9F6] py-20 md:py-32 px-6 lg:px-12 text-neutral-950 border-t border-neutral-200/40">
+<section 
+  style={{
+    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='3' result='noise'/%3E%3CfeDiffuseLighting in='noise' lighting-color='%23F7F5F0' surfaceScale='1.0'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'repeat', // Force la répétition du motif
+    backgroundSize: '180px 180px', // Maintient le grain très fin et précis
+    borderTop: '1px solid #E5E2D9'
+  }}
+  className="py-20 md:py-32 px-6 lg:px-12 text-neutral-950"
+>
   <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-16 lg:gap-24 items-start">
     
     {/* COLONNE GAUCHE (45% de largeur) : Coordonnées fines & Duo de photos d'exposition superposées éditables */}

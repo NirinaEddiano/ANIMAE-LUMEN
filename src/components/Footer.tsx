@@ -10,20 +10,13 @@ export default function Footer() {
   return (
     <footer 
       style={{
-        backgroundColor: '#F5F2EB', // Même couleur sable que le reste du site
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='3' result='noise'/%3E%3CfeDiffuseLighting in='noise' lighting-color='%23F7F5F0' surfaceScale='1.0'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)'/%3E%3C/svg%3E")`,
+        backgroundRepeat: 'repeat', // Force la répétition du motif
+        backgroundSize: '180px 180px', // Maintient le grain très fin et précis
         borderTop: '1px solid #E5E2D9'
       }}
       className="relative z-10 w-full py-16 md:py-24 px-6 overflow-hidden"
     >
-      {/* Texture de grain de papier naturelle et subtile pour le fond */}
-      <div
-        className="absolute inset-0 z-0 pointer-events-none"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-          mixBlendMode: 'multiply',
-          opacity: 0.35, // Grain doux et subtil
-        }}
-      />
 
       <div className="relative z-10 max-w-5xl mx-auto text-center space-y-10">
         {/* Titre et Bouton de Contact */}

@@ -129,27 +129,18 @@ export default function InstagramSection({
 
   const profileImg = resolve('insta_profile_img');
   const username = resolve('insta_username');
-  const bio = resolve('insta_bio');
   const btnText = resolve('insta_btn_text');
 
   return (
     <section 
       style={{
-        backgroundColor: '#F5F2EB', // Même couleur sable que la section "Mes Galeries"
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='3' result='noise'/%3E%3CfeDiffuseLighting in='noise' lighting-color='%23F7F5F0' surfaceScale='1.0'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)'/%3E%3C/svg%3E")`,
+        backgroundRepeat: 'repeat', // Évite l'étirement flou
+        backgroundSize: '180px 180px', // Maintient le grain très fin et précis
         borderTop: '1px solid #E5E2D9'
       }}
-      className="relative w-full py-12 md:py-20 overflow-hidden"
+      className="relative w-full py-16 md:py-24 overflow-hidden"
     >
-      {/* Texture de grain de papier organique un peu plus accentuée */}
-      <div
-        className="absolute inset-0 z-0 pointer-events-none"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-          mixBlendMode: 'multiply',
-          opacity: 0.45, // Opacité de 0.45 pour faire ressortir joliment la texture
-        }}
-      />
-
       <input
         type="file"
         ref={fileInputRef}
@@ -158,63 +149,51 @@ export default function InstagramSection({
         className="hidden"
       />
 
-      <div className="relative z-10 max-w-4xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="flex flex-col md:flex-row items-center gap-6">
-          {/* Avatar */}
-          <div
-            className={`w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden shadow-sm ring-2 ring-neutral-200 flex-shrink-0 relative ${
-              isEditing ? 'cursor-pointer hover:ring-sage/60' : ''
-            }`}
-            onClick={() => {
-              if (isEditing) {
-                onSelectKey('insta_profile_img');
-                fileInputRef.current?.click();
-              }
-            }}
-          >
-            {profileImg && (
-              <img
-                src={profileImg}
-                alt="Instagram Avatar"
-                className="w-full h-full object-cover"
-              />
-            )}
-            {uploading && (
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-xs">
-                Uploader...
-              </div>
-            )}
-          </div>
-
-          {/* Textes */}
-          <div className="text-center md:text-left">
-            <span
-              contentEditable={isEditing}
-              suppressContentEditableWarning={true}
-              onBlur={(e) => handleBlur('insta_username', e)}
-              onClick={() => isEditing && onSelectKey('insta_username')}
-              className={`font-sans text-lg font-semibold text-neutral-900 outline-none rounded-xs whitespace-pre-wrap ${
-                isEditing ? 'hover:ring-1 hover:ring-sage/40 cursor-text' : ''
-              } ${isEditing && selectedKey === 'insta_username' ? 'ring-1 ring-sage/40 bg-neutral-50' : ''}`}
-            >
-              {username}
-            </span>
-            <p
-              contentEditable={isEditing}
-              suppressContentEditableWarning={true}
-              onBlur={(e) => handleBlur('insta_bio', e)}
-              onClick={() => isEditing && onSelectKey('insta_bio')}
-              className={`font-sans text-sm text-neutral-600 mt-1 whitespace-pre-line outline-none rounded-xs ${
-                isEditing ? 'hover:ring-1 hover:ring-sage/40 cursor-text' : ''
-              } ${isEditing && selectedKey === 'insta_bio' ? 'ring-1 ring-sage/40 bg-neutral-50' : ''}`}
-            >
-              {bio}
-            </p>
-          </div>
+      <div className="relative z-10 max-w-md mx-auto px-6 flex flex-col items-center justify-center text-center gap-5">
+        
+        {/* Avatar */}
+        <div
+          className={`w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden shadow-sm ring-2 ring-neutral-200 flex-shrink-0 relative ${
+            isEditing ? 'cursor-pointer hover:ring-sage/60' : ''
+          }`}
+          onClick={() => {
+            if (isEditing) {
+              onSelectKey('insta_profile_img');
+              fileInputRef.current?.click();
+            }
+          }}
+        >
+          {profileImg && (
+            <img
+              src={profileImg}
+              alt="Instagram Avatar"
+              className="w-full h-full object-cover animate-fade-in"
+            />
+          )}
+          {uploading && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-xs">
+              Uploader...
+            </div>
+          )}
         </div>
 
-        {/* Action (Bouton S'abonner aux couleurs du site, sans statistiques) */}
-        <div className="flex flex-row items-center gap-4">
+        {/* Nom d'utilisateur */}
+        <div className="mt-1">
+          <span
+            contentEditable={isEditing}
+            suppressContentEditableWarning={true}
+            onBlur={(e) => handleBlur('insta_username', e)}
+            onClick={() => isEditing && onSelectKey('insta_username')}
+            className={`font-sans text-base md:text-lg font-semibold text-neutral-900 outline-none rounded-xs whitespace-pre-wrap ${
+              isEditing ? 'hover:ring-1 hover:ring-sage/40 cursor-text' : ''
+            } ${isEditing && selectedKey === 'insta_username' ? 'ring-1 ring-sage/40 bg-neutral-50' : ''}`}
+          >
+            {username}
+          </span>
+        </div>
+
+        {/* Bouton S'abonner centré en dessous */}
+        <div className="mt-2">
           <a
             href="https://www.instagram.com/animaelumen"
             target="_blank"
@@ -231,7 +210,7 @@ export default function InstagramSection({
               suppressContentEditableWarning={true}
               onBlur={(e) => handleBlur('insta_btn_text', e)}
               onClick={() => isEditing && onSelectKey('insta_btn_text')}
-              className={`inline-block font-sans text-xs md:text-sm uppercase tracking-wider text-white bg-[#2C2C2C] border border-[#2C2C2C] px-6 py-2.5 rounded-none hover:bg-transparent hover:text-charcoal transition-all duration-300 outline-none whitespace-pre-wrap ${
+              className={`inline-block font-sans text-xs md:text-sm uppercase tracking-wider text-white bg-[#2C2C2C] border border-[#2C2C2C] px-8 py-2.5 rounded-none hover:bg-transparent hover:text-charcoal transition-all duration-300 outline-none whitespace-pre-wrap ${
                 isEditing ? 'cursor-text' : ''
               } ${isEditing && selectedKey === 'insta_btn_text' ? 'ring-2 ring-sage/60' : ''}`}
             >
@@ -239,6 +218,7 @@ export default function InstagramSection({
             </span>
           </a>
         </div>
+
       </div>
     </section>
   );
