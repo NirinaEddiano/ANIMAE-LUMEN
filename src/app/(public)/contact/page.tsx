@@ -75,6 +75,44 @@ export default function ContactPage({
 }) {
   const { language } = useLanguage();
 
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    subject: '',
+    message: '',
+  });
+  const [sending, setSending] = useState(false);
+  const [status, setStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({
+    type: null,
+    message: '',
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSending(true);
+    setStatus({ type: null, message: '' });
+
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStatus({ type: 'success', message: 'Votre message a bien été envoyé !' });
+        setFormData({ firstName: '', lastName: '', email: '', subject: '', message: '' });
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      setStatus({ type: 'error', message: 'Une erreur est survenue lors de l\'envoi du message.' });
+    } finally {
+      setSending(false);
+    }
+  };
+
   // --- CHARGEMENT DYNAMIQUE DES TEXTES & STYLES ---
   const [localDbContent, setLocalDbContent] = useState<any[]>([]);
 
@@ -217,7 +255,7 @@ export default function ContactPage({
             isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
           } ${isEditing && selectedKey === 'contact_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
         >
-          {getContent('contact_heading', 'value_fr', 'Animae Lumen')}
+          {getContent('contact_heading', 'value_fr', 'AnimaeLumen')}
         </h3>
 
         <div className="w-8 h-[1px] bg-neutral-300" />
@@ -393,7 +431,7 @@ export default function ContactPage({
       </div>
 
       {/* Formulaire HTML d'origine (Totalement préservé, aucun input n'est modifié) */}
-      <form className="space-y-8 md:space-y-10 pt-4">
+      <form onSubmit={handleSubmit} className="space-y-8 md:space-y-10 pt-4">
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
           <div className="flex flex-col space-y-2 text-left">
@@ -403,6 +441,8 @@ export default function ContactPage({
             <input 
               type="text" 
               required
+              value={formData.firstName}
+              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
               className="w-full bg-transparent border-b border-neutral-300/80 py-2.5 text-neutral-800 focus:border-neutral-950 focus:outline-none transition-colors duration-300 font-sans text-sm font-light"
             />
           </div>
@@ -413,6 +453,8 @@ export default function ContactPage({
             <input 
               type="text" 
               required
+              value={formData.lastName}
+              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
               className="w-full bg-transparent border-b border-neutral-300/80 py-2.5 text-neutral-800 focus:border-neutral-950 focus:outline-none transition-colors duration-300 font-sans text-sm font-light"
             />
           </div>
@@ -425,6 +467,8 @@ export default function ContactPage({
           <input 
             type="email" 
             required
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             className="w-full bg-transparent border-b border-neutral-300/80 py-2.5 text-neutral-800 focus:border-neutral-950 focus:outline-none transition-colors duration-300 font-sans text-sm font-light"
           />
         </div>
@@ -436,6 +480,8 @@ export default function ContactPage({
           <input 
             type="text" 
             required
+            value={formData.subject}
+            onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
             className="w-full bg-transparent border-b border-neutral-300/80 py-2.5 text-neutral-800 focus:border-neutral-950 focus:outline-none transition-colors duration-300 font-sans text-sm font-light"
           />
         </div>
@@ -447,6 +493,8 @@ export default function ContactPage({
           <textarea 
             rows={5}
             required
+            value={formData.message}
+            onChange={(e) => setFormData({ ...formData, message: e.target.value })}
             className="w-full bg-transparent border-b border-neutral-300/80 py-2.5 text-neutral-800 focus:border-neutral-950 focus:outline-none transition-colors duration-300 font-sans text-sm font-light resize-none leading-relaxed"
           />
         </div>
@@ -454,10 +502,16 @@ export default function ContactPage({
         <div className="pt-4 text-left">
           <button 
             type="submit"
-            className="text-[10px] md:text-xs uppercase tracking-[0.25em] font-light text-neutral-900 border border-neutral-900/30 px-10 py-4 hover:bg-neutral-800 hover:text-white hover:border-neutral-800 transition-all duration-500 inline-block rounded-none cursor-pointer shadow-xs"
+            disabled={sending}
+            className="text-[10px] md:text-xs uppercase tracking-[0.25em] font-light text-neutral-900 border border-neutral-900/30 px-10 py-4 hover:bg-neutral-800 hover:text-white hover:border-neutral-800 transition-all duration-500 inline-block rounded-none cursor-pointer shadow-xs disabled:opacity-40"
           >
-            {contactFormTranslations[language].send}
+            {sending ? 'Envoi...' : contactFormTranslations[language].send}
           </button>
+          {status.type && (
+            <p className={`mt-4 text-xs font-sans tracking-wide ${status.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+              {status.message}
+            </p>
+          )}
         </div>
 
       </form>

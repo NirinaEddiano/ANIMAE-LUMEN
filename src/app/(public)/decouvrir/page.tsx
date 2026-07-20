@@ -161,14 +161,21 @@ export default function DiscoverPage({
       </section>
 
       {/* === ZONE 2 : Bande titre services (10vh) === */}
-      <section className="relative h-[10vh] w-full flex items-center justify-center bg-clay/10 border-y border-clay/15">
+      <section 
+        style={{
+          backgroundColor: '#F5F2EB', // Couleur sable doux naturelle de l'exemple "Our Roots"
+          borderTop: '1px solid #E5E2D9', // Ligne très fine en haut
+          borderBottom: '1px solid #E5E2D9', // Ligne très fine en bas
+        }}
+        className="relative h-[10vh] w-full flex items-center justify-center"
+      >
+        {/* Génération dynamique et directe du grain de papier en SVG (sans fichier externe requis) */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            backgroundImage: 'url("/paper.svg")',
-            backgroundRepeat: 'repeat',
-            backgroundSize: '300px 300px',
-            opacity: 0.4,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+            mixBlendMode: 'multiply',
+            opacity: 0.55, // Augmenté à 0.55 pour rendre le grain bien présent et visible
           }}
         />
         <h2

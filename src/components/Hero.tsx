@@ -23,7 +23,7 @@ interface HeroProps {
   dbContent?: ContentItem[];
 }
 
-const REQUIRED_KEYS = ['home_hero_title', 'home_hero_intro', 'home_hero_image', 'btn_discover'] as const;
+const REQUIRED_KEYS = ['home_hero_title', 'home_hero_subtitle', 'home_hero_intro', 'home_hero_image', 'btn_discover'] as const;
 
 export default function Hero({
   isEditing = false,
@@ -115,6 +115,8 @@ export default function Hero({
   const heroImage = get('home_hero_image') || 'https://images.pexels.com/photos/13030798/pexels-photo-13030798.jpeg';
   const isImgSelected = isEditing && selectedKey === 'home_hero_image';
 
+
+
   return (
     <section className="relative h-screen w-full overflow-hidden">
       {/* Image Hero — background-image CSS */}
@@ -142,28 +144,42 @@ export default function Hero({
       {/* Contenu central */}
       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-6">
         <div className="max-w-3xl space-y-4 md:space-y-8">
-          {/* Titre Hero */}
+          {/* 1. TITRE PRINCIPAL (Force le style ultra-fin à 100 pour contourner les styles de la DB et augmente l'espacement) */}
           <h1
             contentEditable={isEditing}
             suppressContentEditableWarning
             onBlur={(e) => handleBlur('home_hero_title', e)}
             onClick={() => handleClick('home_hero_title')}
-            style={getStyle('home_hero_title')}
-            className={`text-white font-serif text-3xl md:text-5xl lg:text-7xl tracking-[0.06em] leading-[0.95] outline-none transition-all duration-200 ${
+            style={{ ...getStyle('home_hero_title'), fontWeight: 100 }}
+            className={`text-white font-serif text-4xl md:text-6xl lg:text-7xl tracking-[0.12em] leading-tight outline-none transition-all duration-200 ${
               isEditing ? 'cursor-text' : ''
             } ${isEditing && selectedKey === 'home_hero_title' ? 'ring-2 ring-sage/40 bg-white/5' : ''}`}
           >
             {get('home_hero_title')}
           </h1>
 
-          {/* Sous-titre / Intro */}
+          {/* 2. PREMIER SOUS-TITRE (Agrandis la taille, rends-le plus blanc en text-white/80, et en italique) */}
+          <p
+            contentEditable={isEditing}
+            suppressContentEditableWarning
+            onBlur={(e) => handleBlur('home_hero_subtitle', e)}
+            onClick={() => handleClick('home_hero_subtitle')}
+            style={{ ...getStyle('home_hero_subtitle'), fontWeight: 200 }}
+            className={`text-white/80 font-serif italic font-light text-lg md:text-xl lg:text-2xl tracking-wide mt-4 md:mt-6 outline-none transition-all duration-200 ${
+              isEditing ? 'cursor-text' : ''
+            } ${isEditing && selectedKey === 'home_hero_subtitle' ? 'ring-2 ring-sage/40 bg-white/5' : ''}`}
+          >
+            {get('home_hero_subtitle')}
+          </p>
+
+          {/* 3. DEUXIÈME SOUS-TITRE (Reste STRICTEMENT identique à son style d'origine sans modification) */}
           <p
             contentEditable={isEditing}
             suppressContentEditableWarning
             onBlur={(e) => handleBlur('home_hero_intro', e)}
             onClick={() => handleClick('home_hero_intro')}
             style={getStyle('home_hero_intro')}
-            className={`text-white/60 font-sans text-xs md:text-sm lg:text-base font-light leading-relaxed tracking-wide max-w-lg mx-auto outline-none transition-all duration-200 ${
+            className={`text-white/60 font-sans text-xs md:text-sm lg:text-base font-light leading-relaxed tracking-wide max-w-lg mx-auto mt-6 md:mt-8 outline-none transition-all duration-200 ${
               isEditing ? 'cursor-text' : ''
             } ${isEditing && selectedKey === 'home_hero_intro' ? 'ring-2 ring-sage/40 bg-white/5' : ''}`}
           >
