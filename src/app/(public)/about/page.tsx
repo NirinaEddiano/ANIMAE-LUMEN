@@ -519,15 +519,12 @@ export default function AboutPage({
   </div>
 </section>
 
-{/* SECTION 3 : LES OUTILS DE L'INVISIBLE — Formes organiques "blob", fond bicolore */}
-<section className="relative overflow-hidden bg-[#FAF9F6] py-20 md:py-32 px-6 lg:px-12 text-neutral-950 border-t border-neutral-200/40">
+{/* SECTION 3 : LES OUTILS DE L'INVISIBLE — Formes organiques "blob", fond unifié */}
+<section className="relative overflow-hidden bg-[#D4D5C8] py-20 md:py-32 px-6 lg:px-12 text-neutral-950 border-t border-neutral-300/40">
 
-  {/* Moitié haute beige sable */}
-  <div className="absolute inset-x-0 top-0 h-1/2 bg-[#E6E3DB] z-[1]" />
-
-  {/* Texture d'art neutre diffusée sur l'ensemble des deux moitiés */}
+  {/* Texture d'art neutre diffusée sur l'ensemble de la section */}
   <div
-    className="absolute inset-0 z-[2] pointer-events-none opacity-[0.55] mix-blend-multiply"
+    className="absolute inset-0 z-0 pointer-events-none opacity-[0.55] mix-blend-multiply"
     style={{
       backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='3' result='noise'/%3E%3CfeDiffuseLighting in='noise' lighting-color='%23ffffff' surfaceScale='1.2'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)'/%3E%3C/svg%3E")`,
       backgroundRepeat: 'repeat',
