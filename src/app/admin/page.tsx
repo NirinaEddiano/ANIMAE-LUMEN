@@ -17,6 +17,13 @@ interface ContentItem {
   is_image: boolean;
 }
 
+const GOOGLE_FONTS = [
+  "Cormorant Garamond", "Playfair Display", "Lora", "Merriweather", "EB Garamond", "Libre Baskerville", "Prata", "Cinzel", "Marcellus", "Bodoni Moda", "Forum", "Italiana", "Spectral",
+  "Inter", "Montserrat", "Raleway", "Poppins", "Lato", "Open Sans", "Roboto", "Oswald", "Quicksand", "Nunito", "Ubuntu", "Work Sans", "Syne", "Tenor Sans", "Josefin Sans",
+  "Abril Fatface", "Comfortaa", "Righteous", "Yeseva One", "Bebas Neue", "Space Grotesk", "Unbounded", "Fraunces",
+  "Italianno", "Dancing Script", "Pacifico", "Great Vibes", "Alex Brush", "Satisfy", "Caveat", "Sacramento", "Mrs Saint Delafield", "Pinyon Script"
+].sort();
+
 export default function AdminPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,6 +39,9 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [fontSearch, setFontSearch] = useState('');
+  const [isFontListOpen, setIsFontListOpen] = useState(false);
+  const fontListRef = useRef<HTMLDivElement>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -107,6 +117,17 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
       fetchPortfolios();
     }
   }, [user]);
+
+  // Ferme la liste de polices au clic extérieur
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (fontListRef.current && !fontListRef.current.contains(event.target as Node)) {
+        setIsFontListOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Sauvegarder (Créer ou Modifier) un Portfolio avec Traduction Automatique du titre & description
   const handleSavePortfolio = async () => {
@@ -818,21 +839,57 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
                         />
                       </div>
 
-                      {/* 1. Sélection de la Police d'Art Complète */}
-                      <div className="flex flex-col space-y-2">
-                        <label className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500">Style de Police</label>
-                        <select value={activeItem.font_family} onChange={(e) => updateField(activeItem.key, 'font_family', e.target.value)} className="w-full bg-neutral-50 border border-neutral-300 p-2 text-xs text-neutral-800 focus:border-neutral-950 focus:outline-none cursor-pointer">
-                          <option value="Inter">Sans-Serif Moderne (Inter)</option>
-                          <option value="Cormorant Garamond">Serif d'Art (Cormorant)</option>
-                          <option value="Playfair Display">Serif Littéraire (Playfair)</option>
-                          <option value="Cinzel">Cinzel (Artistique)</option>
-                          <option value="Italiana">Italiana (Luxueux)</option>
-                          <option value="Montserrat">Montserrat (Gras Moderne)</option>
-                          <option value="Lora">Lora (Poétique)</option>
-                          <option value="Marcellus">Marcellus (Romain)</option>
-                          <option value="Italianno">Italianno (Calligraphie d'Amour)</option>
-                        </select>
-                      </div>
+<div className="flex flex-col space-y-2 relative" ref={fontListRef}>
+  <label className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500">
+    Style de Police
+  </label>
+  
+  <input
+    id="font-search-input"
+    type="text"
+    value={isFontListOpen ? fontSearch : activeItem.font_family}
+    onFocus={() => { setFontSearch(''); setIsFontListOpen(true); }}
+    onChange={(e) => { setFontSearch(e.target.value); setIsFontListOpen(true); }}
+    placeholder="Rechercher une police..."
+    className="w-full bg-white border border-neutral-300 p-3 text-sm text-neutral-900 focus:border-neutral-950 focus:outline-none cursor-pointer shadow-sm"
+    style={{ fontFamily: activeItem.font_family || undefined }}
+  />
+
+  {isFontListOpen && (
+    <div 
+      className="fixed z-[9999] bg-white border border-neutral-200 shadow-2xl rounded-sm overflow-hidden animate-in fade-in zoom-in duration-200"
+      style={{ 
+        top: fontListRef.current ? fontListRef.current.getBoundingClientRect().bottom + 4 : 0,
+        left: fontListRef.current ? fontListRef.current.getBoundingClientRect().left : 0,
+        width: fontListRef.current ? fontListRef.current.getBoundingClientRect().width : 240,
+        height: '400px'
+      }}
+    >
+      <div className="h-full overflow-y-auto bg-white custom-scrollbar">
+        {GOOGLE_FONTS.filter(f => f.toLowerCase().includes(fontSearch.toLowerCase())).map(font => (
+          <button
+            key={font}
+            type="button"
+            onClick={() => { 
+              updateField(activeItem.key, 'font_family', font); 
+              setIsFontListOpen(false); 
+              setFontSearch('');
+            }}
+            className={`w-full text-left px-4 py-3 text-sm hover:bg-neutral-50 transition-colors border-b border-neutral-50 last:border-0 ${
+              activeItem.font_family === font ? 'bg-neutral-100 font-bold text-black' : 'text-neutral-700'
+            }`}
+            style={{ fontFamily: font }}
+          >
+            {font}
+          </button>
+        ))}
+        {GOOGLE_FONTS.filter(f => f.toLowerCase().includes(fontSearch.toLowerCase())).length === 0 && (
+          <div className="p-4 text-xs text-neutral-400 italic text-center">Aucune police trouvée</div>
+        )}
+      </div>
+    </div>
+  )}
+</div>
 
                       {/* 2. Taille précise en pixels */}
                       <div className="flex flex-col space-y-2">
