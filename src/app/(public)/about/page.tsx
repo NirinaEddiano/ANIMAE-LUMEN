@@ -165,6 +165,11 @@ export default function AboutPage({
     };
   };
 
+  const getStampClass = (key: string): string => {
+    const item = activeContent.find((i: any) => i.key === key);
+    return item?.is_stamped ? 'effect-letterpress' : '';
+  };
+
   const t = aboutHeroTranslations[language];
 
   const IMAGE_KEYS = ['about_image_0', 'about_image_1', 'about_image_2', 'about_image_3', 'about_image_4', 'about_image_5', 'about_image_6'];
@@ -186,23 +191,15 @@ export default function AboutPage({
     }
   };
 
-  const bgTexture = getContent('portfolio_grid_bg_texture', 'value_fr', '');
-
-  const BLOB_RADII = [
-    '60% 40% 30% 70% / 60% 30% 70% 40%',
-    '40% 60% 70% 30% / 50% 60% 40% 50%',
-    '55% 45% 65% 35% / 45% 65% 35% 55%',
-  ];
-
   return (
-    <main className="min-h-screen bg-[#FAF9F6]">
+    <main className="min-h-screen bg-[#fcf7f3]">
       
       {/* SECTION HERO */}
       <section className="relative h-[50vh] md:h-[58vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white">
         
         <div
           onClick={() => handleImageClick('about_hero_image')}
-          className={`absolute inset-0 bg-cover bg-center ${
+          className={`absolute inset-0 bg-cover bg-center grayscale ${
             isEditing ? 'cursor-pointer hover:brightness-90' : ''
           } ${isEditing && selectedKey === 'about_hero_image' ? 'ring-4 ring-white/40 ring-inset' : ''}`}
           style={{
@@ -258,58 +255,13 @@ export default function AboutPage({
 
       </section>
 
-     {/* SECTION 1 : L'ESSENCE DE L'INSTANT — Collage asymétrique avec tirages encadrés */}
-<section className="relative overflow-hidden bg-[#E6E3DB] py-20 md:py-32 px-6 lg:px-12 text-neutral-950 border-t border-neutral-200/40">
-  <div
-    className="absolute inset-0 z-0 pointer-events-none opacity-[0.55] mix-blend-multiply"
-    style={{
-      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='3' result='noise'/%3E%3CfeDiffuseLighting in='noise' lighting-color='%23ffffff' surfaceScale='1.2'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)'/%3E%3C/svg%3E")`,
-      backgroundRepeat: 'repeat',
-      backgroundSize: '180px 180px',
-    }}
-  />
-  <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-24 items-center">
-    
-    {/* COLONNE GAUCHE : 7 tirages éparpillés avec cadre blanc (passe-partout) */}
-    <div className="lg:col-span-6 relative w-full h-[450px] md:h-[580px] select-none">
+     {/* SECTION 1 : L'ESSENCE DE L'INSTANT — Intro éditoriale + grille plein cadre serrée */}
+<section className="relative overflow-hidden bg-[#fcf7f3] py-20 md:py-32 px-6 lg:px-12 text-neutral-950">
+  <div className="max-w-4xl mx-auto text-center">
+
+    {/* INTRO ÉDITORIALE (style souls) */}
+    <div className="space-y-6 md:space-y-8">
       
-      {[0, 1, 2, 3, 4, 5, 6].map((i) => {
-        const positions = [
-          'top-12 left-0 w-[44%] aspect-[3/4] -rotate-3',
-          'bottom-6 right-0 w-[55%] aspect-[3/2] rotate-3',
-          'top-45 left-[35%] w-[33%] aspect-[1/1] -rotate-6 opacity-75',
-          'bottom-2 left-6 w-[39%] aspect-[3/4] rotate-6',
-          'top-4 right-2 w-[46%] aspect-[3/2] -rotate-2',
-          'top-[30%] right-2 w-[52%] aspect-[3/2] -rotate-1',
-          'top-[-10%] left-[30%] w-[32%] aspect-[3/4] rotate-6',
-        ];
-        const selected = isEditing && selectedKey === IMAGE_KEYS[i];
-        return (
-          <div
-            key={i}
-            onClick={() => handleImageClick(IMAGE_KEYS[i])}
-            className={`absolute ${positions[i]} overflow-hidden transition-all duration-500 cursor-pointer ${
-              selected ? 'z-40 ring-4 ring-neutral-400' : 'hover:z-40 hover:rotate-0'
-            }`}
-          >
-            {/* Cadre blanc (passe-partout) */}
-            <div className="bg-white p-2 shadow-md">
-              <div className="aspect-[3/4] overflow-hidden bg-neutral-100 relative">
-                <img
-                  src={getContent(IMAGE_KEYS[i], 'value_fr', IMAGE_FALLBACKS[i])}
-                  alt=""
-                  className={`w-full h-full object-cover ${i === 2 || i === 6 ? 'grayscale contrast-110' : ''}`}
-                />
-              </div>
-            </div>
-          </div>
-        );
-      })}
-
-    </div>
-
-    {/* COLONNE DROITE : Textes */}
-    <div className="lg:col-span-6 space-y-6 lg:pl-4 text-left">
       <span
         contentEditable={isEditing}
         suppressContentEditableWarning={true}
@@ -329,7 +281,7 @@ export default function AboutPage({
         onBlur={(e) => onUpdateText('about_heading', e.currentTarget.innerText || '')}
         onClick={() => isEditing && onSelectKey('about_heading')}
         style={getInlineStyle('about_heading')}
-        className={`font-serif text-4xl md:text-5xl lg:text-6xl tracking-wide font-light text-neutral-900 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${
+        className={`font-serif text-4xl md:text-5xl lg:text-6xl tracking-wide font-light text-neutral-900 leading-tight outline-none rounded-xs whitespace-pre-wrap block art-letterpress ${getStampClass('about_heading')} ${
           isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
         } ${isEditing && selectedKey === 'about_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
       >
@@ -349,9 +301,9 @@ export default function AboutPage({
         {getContent('about_subtitle', language === 'fr' ? 'value_fr' : 'value_en', aboutVisionTranslations[language].subtitle)}
       </p>
 
-      <div className="w-12 h-[1px] bg-neutral-300" />
+      <div className="w-12 h-[1px] bg-neutral-300 mx-auto" />
       
-      <div className="space-y-5 font-sans text-sm md:text-base font-light text-neutral-600 leading-relaxed tracking-wide">
+      <div className="space-y-5 font-sans text-sm md:text-base font-light text-neutral-600 leading-relaxed tracking-wide max-w-3xl mx-auto">
         <p
           contentEditable={isEditing}
           suppressContentEditableWarning={true}
@@ -403,18 +355,33 @@ export default function AboutPage({
     </div>
 
   </div>
+
+  {/* GRILLE PLEIN CADRE (3 photos seulement, largeur réduite) */}
+  <div className="mt-16 md:mt-20 max-w-4xl mx-auto grid grid-cols-3 gap-1 md:gap-3">
+    {[0, 1, 2].map((i) => {
+      const aspect = 'aspect-[3/4]';
+      const selected = isEditing && selectedKey === IMAGE_KEYS[i];
+      return (
+        <div
+          key={i}
+          onClick={() => handleImageClick(IMAGE_KEYS[i])}
+          className={`group relative overflow-hidden cursor-pointer ${aspect} ${
+            selected ? 'ring-4 ring-neutral-400' : ''
+          }`}
+        >
+          <img
+            src={getContent(IMAGE_KEYS[i], 'value_fr', IMAGE_FALLBACKS[i])}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover transition-all duration-700 grayscale group-hover:grayscale-0"
+          />
+        </div>
+      );
+    })}
+  </div>
 </section>
 
 {/* SECTION 2 : L'EXPÉRIENCE DE L'ESPACE SACRÉ — Arche éditoriale, composition asymétrique */}
-<section className="relative overflow-hidden bg-[#D4D5C8] py-20 md:py-32 px-6 lg:px-12 border-t border-neutral-300/40">
-  <div
-    className="absolute inset-0 z-0 pointer-events-none opacity-[0.55] mix-blend-multiply"
-    style={{
-      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='3' result='noise'/%3E%3CfeDiffuseLighting in='noise' lighting-color='%23ffffff' surfaceScale='1.2'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)'/%3E%3C/svg%3E")`,
-      backgroundRepeat: 'repeat',
-      backgroundSize: '180px 180px',
-    }}
-  />
+<section className="relative overflow-hidden bg-[#fcf7f3] py-20 md:py-32 px-6 lg:px-12">
   <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
     
     {/* COLONNE GAUCHE (5/12) : Texte ajusté */}
@@ -439,7 +406,7 @@ export default function AboutPage({
         onBlur={(e) => onUpdateText('experience_heading', e.currentTarget.innerText || '')}
         onClick={() => isEditing && onSelectKey('experience_heading')}
         style={getInlineStyle('experience_heading')}
-        className={`font-serif text-3xl md:text-4xl lg:text-5xl tracking-wide font-light text-neutral-900 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${
+        className={`font-serif text-3xl md:text-4xl lg:text-5xl tracking-wide font-light text-neutral-900 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${getStampClass('experience_heading')} ${
           isEditing ? 'hover:bg-black/5 cursor-text' : ''
         } ${isEditing && selectedKey === 'experience_heading' ? 'border border-dashed border-neutral-400 bg-black/5' : ''}`}
       >
@@ -477,38 +444,36 @@ export default function AboutPage({
       </div>
     </div>
 
-    {/* COLONNE DROITE (7/12) : Arche + carré chevauchant */}
-    <div className="lg:col-span-7 flex items-center justify-center">
+    {/* COLONNE DROITE (7/12) : Grille plein cadre serrée (style souls) */}
+    <div className="lg:col-span-7">
       
-      {/* Conteneur de la composition */}
-      <div className="relative w-full max-w-[500px]">
+      <div className="grid grid-cols-2 gap-1">
         
-        {/* Grande image en arche (rounded-t-full) */}
+        {/* Grande image plein cadre */}
         <div
           onClick={() => handleImageClick('experience_image_1')}
-          className={`relative w-[65%] h-[500px] md:h-[550px] mx-auto overflow-hidden shadow-sm rounded-t-full ${
+          className={`group relative aspect-[3/4] overflow-hidden ${
             isEditing ? 'cursor-pointer hover:brightness-95' : ''
           } ${isEditing && selectedKey === 'experience_image_1' ? 'ring-4 ring-neutral-400' : ''}`}
         >
           <img
             src={getContent('experience_image_1', 'value_fr', 'https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?auto=format&fit=crop&w=800&q=80')}
             alt=""
-            className="w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover transition-all duration-700 grayscale group-hover:grayscale-0"
           />
-          <div className="absolute inset-0 bg-neutral-900/5 pointer-events-none" />
         </div>
 
-        {/* Petite image carrée chevauchant le bas droit de l'arche */}
+        {/* Image carrée plein cadre */}
         <div
           onClick={() => handleImageClick('experience_image_2')}
-          className={`absolute bottom-0 right-0 w-[45%] aspect-square z-20 bg-white p-1 shadow-lg ${
+          className={`group relative aspect-[3/4] overflow-hidden ${
             isEditing ? 'cursor-pointer hover:brightness-95' : ''
           } ${isEditing && selectedKey === 'experience_image_2' ? 'ring-4 ring-neutral-400' : ''}`}
         >
           <img
             src={getContent('experience_image_2', 'value_fr', 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=600&q=80')}
             alt=""
-            className="w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover transition-all duration-700 grayscale group-hover:grayscale-0"
           />
         </div>
 
@@ -520,17 +485,7 @@ export default function AboutPage({
 </section>
 
 {/* SECTION 3 : LES OUTILS DE L'INVISIBLE — Formes organiques "blob", fond unifié */}
-<section className="relative overflow-hidden bg-[#D4D5C8] py-20 md:py-32 px-6 lg:px-12 text-neutral-950 border-t border-neutral-300/40">
-
-  {/* Texture d'art neutre diffusée sur l'ensemble de la section */}
-  <div
-    className="absolute inset-0 z-0 pointer-events-none opacity-[0.55] mix-blend-multiply"
-    style={{
-      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='3' result='noise'/%3E%3CfeDiffuseLighting in='noise' lighting-color='%23ffffff' surfaceScale='1.2'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)'/%3E%3C/svg%3E")`,
-      backgroundRepeat: 'repeat',
-      backgroundSize: '180px 180px',
-    }}
-  />
+<section className="relative overflow-hidden bg-[#fcf7f3] py-20 md:py-32 px-6 lg:px-12 text-neutral-950">
 
   <div className="relative z-10 max-w-6xl mx-auto space-y-16 md:space-y-24">
     
@@ -555,7 +510,7 @@ export default function AboutPage({
         onBlur={(e) => onUpdateText('signature_heading', e.currentTarget.innerText || '')}
         onClick={() => isEditing && onSelectKey('signature_heading')}
         style={getInlineStyle('signature_heading')}
-        className={`font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${
+        className={`font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight outline-none rounded-xs whitespace-pre-wrap block art-letterpress ${getStampClass('signature_heading')} ${
           isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
         } ${isEditing && selectedKey === 'signature_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
       >
@@ -565,7 +520,7 @@ export default function AboutPage({
       <div className="w-12 h-[1px] bg-neutral-300 mx-auto mt-6" />
     </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1 md:gap-3">
       {[0, 1, 2].map((index) => {
         const item = aboutSignatureTranslations[language].items[index];
         const imageKey = `signature_image_${index}`;
@@ -575,27 +530,25 @@ export default function AboutPage({
         const isSelected = selectedKey === imageKey;
 
         return (
-          <div key={index} className="flex flex-col items-center text-center group">
-            {/* Forme organique "blob" */}
+          <div key={index} className="flex flex-col group">
+            {/* Carte image plein cadre */}
             <div
               onClick={() => handleImageClick(imageKey)}
-              className={`overflow-hidden shadow-sm transition-all duration-500 cursor-pointer w-full ${
-                isEditing ? 'hover:shadow-md' : 'hover:shadow-md'
-              } ${isEditing && isSelected ? 'ring-4 ring-neutral-400' : ''}`}
-              style={{ borderRadius: BLOB_RADII[index] }}
+              className={`overflow-hidden w-full cursor-pointer ${
+                isEditing && isSelected ? 'ring-4 ring-neutral-400' : ''
+              }`}
             >
               <div className="aspect-[3/4] relative">
                 <img
                   src={getContent(imageKey, 'value_fr', item.imageUrl)}
                   alt={item.title}
-                  className="w-full h-full object-cover transition-transform duration-[1800ms] ease-out group-hover:scale-105"
+                  className="absolute inset-0 w-full h-full object-cover transition-all duration-700 ease-out grayscale group-hover:grayscale-0 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-neutral-900/5 pointer-events-none" />
               </div>
             </div>
 
-            <div className="space-y-2 px-1 mt-8">
-              
+            <div className="space-y-2 mt-5 md:mt-6 text-left">
+
               <span
                 contentEditable={isEditing}
                 suppressContentEditableWarning={true}
@@ -650,7 +603,7 @@ export default function AboutPage({
   
   <div
     onClick={() => handleImageClick('about_cta_bg_image')}
-    className={`absolute inset-0 bg-cover bg-center transition-transform duration-[4000ms] ease-out ${
+    className={`absolute inset-0 bg-cover bg-center grayscale transition-transform duration-[4000ms] ease-out ${
       isEditing ? 'cursor-pointer hover:brightness-90' : ''
     } ${isEditing && selectedKey === 'about_cta_bg_image' ? 'ring-4 ring-white/40 ring-inset' : ''}`}
     style={{
@@ -726,13 +679,15 @@ export default function AboutPage({
   </div>
 </section>
 
-    <InstagramSection
-      dbContent={dbContent}
-      isEditing={isEditing}
-      onUpdateText={onUpdateText}
-      onSelectKey={onSelectKey}
-      selectedKey={selectedKey}
-    />
+    {isEditing && (
+      <InstagramSection
+        dbContent={dbContent}
+        isEditing={isEditing}
+        onUpdateText={onUpdateText}
+        onSelectKey={onSelectKey}
+        selectedKey={selectedKey}
+      />
+    )}
     </main>
   );
 }

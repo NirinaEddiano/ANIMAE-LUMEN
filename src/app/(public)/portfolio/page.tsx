@@ -121,6 +121,11 @@ export default function PortfolioPage({
       fontWeight: item.is_bold ? 'bold' : 'light' as const,
     };
   };
+
+  const getStampClass = (key: string): string => {
+    const item = activeContent.find((i: any) => i.key === key);
+    return item?.is_stamped ? 'effect-letterpress' : '';
+  };
   // ------------------------------------------------
 
   const hero = portfolioHeroTranslations[language];
@@ -182,7 +187,7 @@ const filteredProjects = filter === 'all'
             onBlur={(e) => onUpdateText('portfolio_hero_heading', e.currentTarget.innerText || '')}
             onClick={() => isEditing && onSelectKey('portfolio_hero_heading')}
             style={getInlineStyle('portfolio_hero_heading')}
-            className={`font-serif text-3xl md:text-5xl lg:text-6xl tracking-wide font-light leading-tight text-white outline-none rounded-xs whitespace-pre-wrap ${
+            className={`font-serif text-3xl md:text-5xl lg:text-6xl tracking-wide font-light leading-tight text-white outline-none rounded-xs whitespace-pre-wrap ${getStampClass('portfolio_hero_heading')} ${
               isEditing ? 'hover:bg-white/10 cursor-text' : ''
             } ${isEditing && selectedKey === 'portfolio_hero_heading' ? 'border border-dashed border-white bg-white/10' : ''}`}
           >
@@ -318,7 +323,7 @@ const filteredProjects = filter === 'all'
       onBlur={(e) => onUpdateText('portfolio_cta_heading', e.currentTarget.innerText || '')}
       onClick={() => isEditing && onSelectKey('portfolio_cta_heading')}
       style={getInlineStyle('portfolio_hero_heading')}
-      className={`font-serif text-3xl md:text-5xl lg:text-6xl tracking-wide font-light leading-tight text-white outline-none rounded-xs whitespace-pre-wrap ${
+      className={`font-serif text-3xl md:text-5xl lg:text-6xl tracking-wide font-light leading-tight text-white outline-none rounded-xs whitespace-pre-wrap ${getStampClass('portfolio_cta_heading')} ${
         isEditing ? 'hover:bg-white/10 cursor-text' : ''
       } ${isEditing && selectedKey === 'portfolio_cta_heading' ? 'border border-dashed border-white bg-white/10' : ''}`}
     >
@@ -364,13 +369,15 @@ const filteredProjects = filter === 'all'
 
 
 
-    <InstagramSection
-      dbContent={dbContent}
-      isEditing={isEditing}
-      onUpdateText={onUpdateText}
-      onSelectKey={onSelectKey}
-      selectedKey={selectedKey}
-    />
+    {isEditing && (
+      <InstagramSection
+        dbContent={dbContent}
+        isEditing={isEditing}
+        onUpdateText={onUpdateText}
+        onSelectKey={onSelectKey}
+        selectedKey={selectedKey}
+      />
+    )}
     </main>
   );
 }

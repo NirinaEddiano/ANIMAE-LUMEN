@@ -14,10 +14,12 @@ interface ContentItem {
   font_family: string;
   font_size: string;
   is_bold: boolean;
+  is_stamped: boolean;
   is_image: boolean;
 }
 
 const GOOGLE_FONTS = [
+  "Minionpro",
   "Cormorant Garamond", "Playfair Display", "Lora", "Merriweather", "EB Garamond", "Libre Baskerville", "Prata", "Cinzel", "Marcellus", "Bodoni Moda", "Forum", "Italiana", "Spectral",
   "Inter", "Montserrat", "Raleway", "Poppins", "Lato", "Open Sans", "Roboto", "Oswald", "Quicksand", "Nunito", "Ubuntu", "Work Sans", "Syne", "Tenor Sans", "Josefin Sans",
   "Abril Fatface", "Comfortaa", "Righteous", "Yeseva One", "Bebas Neue", "Space Grotesk", "Unbounded", "Fraunces",
@@ -293,6 +295,7 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
           font_family: item.font_family,
           font_size: item.font_size,
           is_bold: item.is_bold,
+          is_stamped: item.is_stamped,
           is_image: item.is_image
         });
     }
@@ -343,9 +346,10 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
           key,
           value_fr: field === 'value_fr' ? value : '',
           value_en: field === 'value_en' ? value : '',
-          font_family: 'Inter',
+          font_family: 'Minionpro',
           font_size: '16px',
           is_bold: false,
+          is_stamped: false,
           is_image: key.includes('image')
         };
         return [...prev, newItem];
@@ -448,9 +452,10 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
     key: selectedKey,
     value_fr: selectedKey.includes('image') ? getDefaultImage(selectedKey) : "Nouveau texte",
     value_en: selectedKey.includes('image') ? getDefaultImage(selectedKey) : "New text",
-    font_family: "Inter",
+    font_family: "Minionpro",
     font_size: "16px",
     is_bold: false,
+    is_stamped: false,
     is_image: selectedKey.includes('image')
   } : null);
 
@@ -901,6 +906,12 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
                       <div className="flex items-center space-x-3 pt-1">
                         <input type="checkbox" id="is_bold" checked={activeItem.is_bold} onChange={(e) => updateField(activeItem.key, 'is_bold', e.target.checked)} className="w-4 h-4 border-neutral-300 focus:ring-neutral-950 accent-neutral-950 cursor-pointer" />
                         <label htmlFor="is_bold" className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500 select-none cursor-pointer">Mettre en Gras</label>
+                      </div>
+
+                      {/* 4. Option d'effet gravure */}
+                      <div className="flex items-center space-x-3 pt-1">
+                        <input type="checkbox" id="is_stamped" checked={activeItem.is_stamped} onChange={(e) => updateField(activeItem.key, 'is_stamped', e.target.checked)} className="w-4 h-4 border-neutral-300 focus:ring-neutral-950 accent-neutral-950 cursor-pointer" />
+                        <label htmlFor="is_stamped" className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500 select-none cursor-pointer">Effet Gravure</label>
                       </div>
                     </div>
                   )}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/context/LanguageContext';
@@ -14,6 +14,7 @@ interface ContentItem {
   font_family: string;
   font_size: string;
   is_bold: boolean;
+  is_stamped: boolean;
   is_image: boolean;
 }
 
@@ -50,7 +51,6 @@ export default function DiscoverPage({
   dbContent?: any[];
 }) {
   const { language } = useLanguage();
-  const carouselRef = useRef<HTMLDivElement>(null);
   const [fetched, setFetched] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -72,6 +72,11 @@ export default function DiscoverPage({
     const item = items.find((i) => i.key === key);
     if (!item) return '';
     return language === 'fr' ? item.value_fr : item.value_en;
+  };
+
+  const getStampClass = (key: string): string => {
+    const item = items.find((i) => i.key === key);
+    return item?.is_stamped ? 'effect-letterpress' : '';
   };
 
   const saveToSupabase = (key: string, val: string) => {
@@ -107,10 +112,9 @@ export default function DiscoverPage({
   const heroTitle = get('discover_hero_title');
   const heroSub = get('discover_hero_subtitle');
   const servicesTitle = get('discover_services_title');
-  const portfolioGridTexture = get('portfolio_grid_bg_texture');
 
   return (
-    <div className="min-h-screen w-full flex flex-col">
+    <div className="min-h-screen w-full flex flex-col bg-[#fcf7f3]">
       {/* === ZONE 1 : Hero (50vh) === */}
       <section className="relative h-[50vh] w-full flex items-center justify-center overflow-hidden">
         {heroImg && (
@@ -140,7 +144,7 @@ export default function DiscoverPage({
             suppressContentEditableWarning
             onBlur={(e) => handleBlur('discover_hero_title', e)}
             onClick={() => isEditing && onSelectKey?.('discover_hero_title')}
-            className={`font-serif text-4xl md:text-5xl lg:text-6xl font-light text-white tracking-wide leading-tight outline-none transition-all duration-200 ${
+            className={`font-serif text-4xl md:text-5xl lg:text-6xl font-light text-white tracking-wide leading-tight outline-none transition-all duration-200 ${getStampClass('discover_hero_title')} ${
               isEditing ? 'cursor-text' : ''
             } ${isEditing && selectedKey === 'discover_hero_title' ? 'ring-2 ring-sage/40 bg-white/5' : ''}`}
           >
@@ -163,11 +167,7 @@ export default function DiscoverPage({
       {/* === ZONE 2 : Bande titre services (10vh) === */}
       <section 
         style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='3' result='noise'/%3E%3CfeDiffuseLighting in='noise' lighting-color='%23F7F5F0' surfaceScale='1.0'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)'/%3E%3C/svg%3E")`,
-          backgroundRepeat: 'repeat', // Force la répétition du motif
-          backgroundSize: '180px 180px', // Maintient le grain très fin et précis
-          borderTop: '1px solid #E5E2D9',
-          borderBottom: '1px solid #E5E2D9',
+          backgroundColor: '#fcf7f3'
         }}
         className="relative h-[10vh] w-full flex items-center justify-center"
       >
@@ -184,38 +184,9 @@ export default function DiscoverPage({
         </h2>
       </section>
 
-      {/* === ZONE 3 : 4 voies (65vh) — Carrousel mobile / Grille desktop === */}
-      <section className="relative w-full bg-[#FDFCF8]">
-        {portfolioGridTexture && (
-          <div
-            className="absolute inset-0 z-0 pointer-events-none opacity-80 mix-blend-multiply"
-            style={{
-              backgroundImage: `url(${portfolioGridTexture})`,
-              backgroundRepeat: 'repeat',
-              backgroundSize: '400px 400px',
-            }}
-          />
-        )}
-
-        <div className="relative z-10">
-          {/* Boutons Prev/Next mobile */}
-          <button
-            onClick={() => carouselRef.current?.scrollBy({ left: -window.innerWidth * 0.85, behavior: 'smooth' })}
-            className="md:hidden absolute left-2 top-1/2 -translate-y-1/2 z-30 w-10 h-10 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-sm border border-white/20 text-white/80 hover:bg-black/50 hover:text-white transition-all"
-            aria-label="Précédent"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-          </button>
-
-          <button
-            onClick={() => carouselRef.current?.scrollBy({ left: window.innerWidth * 0.85, behavior: 'smooth' })}
-            className="md:hidden absolute right-2 top-1/2 -translate-y-1/2 z-30 w-10 h-10 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-sm border border-white/20 text-white/80 hover:bg-black/50 hover:text-white transition-all"
-            aria-label="Suivant"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-          </button>
-
-          <section ref={carouselRef} className="w-full h-[65vh] flex md:grid md:grid-cols-4 md:overflow-visible overflow-x-auto snap-x snap-mandatory touch-pan-x [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      {/* === ZONE 3 : 4 voies — Grille 3 colonnes (le 4e sous le 1er), 1 colonne sur mobile === */}
+      <section className="relative w-full bg-[#fcf7f3] pt-4 md:pt-8 pb-16 md:pb-24 px-8 md:px-16">
+        <div className="relative z-10 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-1 md:gap-3">
           {CATEGORIES.map((cat) => {
             const imgKey = `${cat.dbKey}_img`;
             const titleKey = `${cat.dbKey}_title`;
@@ -228,12 +199,12 @@ export default function DiscoverPage({
                 key={cat.slug}
                 href={`/services/${cat.slug}`}
                 onClick={(e) => { if (isEditing) e.preventDefault(); }}
-                className="relative group block h-full min-w-[85vw] md:min-w-0 flex-shrink-0 snap-center overflow-hidden"
+                className="relative group block h-[65vh] md:h-[60vh] overflow-hidden"
               >
                 {catImg && (
                   <div
                     onClick={() => handleImgClick(imgKey)}
-                    className={`absolute inset-0 bg-cover bg-center transition-all duration-700 group-hover:brightness-110 ${
+                    className={`absolute inset-0 bg-cover bg-center transition-all duration-700 group-hover:brightness-110 grayscale group-hover:grayscale-0 ${
                       isEditing ? 'cursor-pointer' : ''
                     } ${isSelected ? 'ring-4 ring-sage/40 ring-inset z-20' : ''}`}
                     style={{ backgroundImage: `url(${catImg})` }}
@@ -260,16 +231,18 @@ export default function DiscoverPage({
               </Link>
             );
           })}
-        </section>
         </div>
 
-        <InstagramSection
-          dbContent={dbContent}
-          isEditing={isEditing}
-          onUpdateText={onUpdateText}
-          onSelectKey={onSelectKey}
-          selectedKey={selectedKey}
-        />
+        {isEditing && (
+          <InstagramSection
+            dbContent={dbContent}
+            isEditing={isEditing}
+            onUpdateText={onUpdateText}
+            onSelectKey={onSelectKey}
+            selectedKey={selectedKey}
+            backgroundColor="#fcf7f3"
+          />
+        )}
       </section>
     </div>
   );

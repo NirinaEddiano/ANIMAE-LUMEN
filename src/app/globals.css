@@ -2,8 +2,8 @@
 @config "../../tailwind.config.ts";
 
 @theme {
-  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-serif), ui-serif, Georgia, serif;
+  --font-sans: Minionpro, sans-serif;
+  --font-serif: Minionpro, serif;
 
   --color-sand: #F5F5F0;
   --color-sage: #8A9A86;
@@ -17,10 +17,39 @@
 }
 
 body {
+  font-family: Minionpro, sans-serif;
   font-size: 20px;
   line-height: 1.7;
 }
 
 html {
   scroll-behavior: smooth;
+}
+
+.effect-letterpress {
+  color: #1c1c1c !important;
+  text-shadow:
+    -1px -1px 1px rgba(0, 0, 0, 0.35),
+    1px 1.5px 1px rgba(255, 255, 255, 1) !important;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
+}
+
+/* Version pour les titres sur fond NOIR (Hero) */
+.text-white.effect-letterpress,
+section.bg-neutral-950 .effect-letterpress,
+section.bg-charcoal .effect-letterpress {
+  color: #FFFFFF !important;
+  text-shadow:
+    -1px -1px 1px rgba(0, 0, 0, 0.8),
+    1px 1px 1px rgba(255, 255, 255, 0.2) !important;
+}
+
+.art-letterpress {
+  color: rgba(25, 25, 25, 0.9) !important;
+  text-shadow:
+    -0.5px -1px 1px rgba(0, 0, 0, 0.2),
+    0px 1px 1px rgba(255, 255, 255, 0.9);
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
 }

@@ -141,12 +141,17 @@ export default function ContactPage({
       fontWeight: item.is_bold ? 'bold' : 'light' as const,
     };
   };
+
+  const getStampClass = (key: string): string => {
+    const item = activeContent.find((i: any) => i.key === key);
+    return item?.is_stamped ? 'effect-letterpress' : '';
+  };
   // ------------------------------------------------
 
   const t = contactHeroTranslations[language];
 
   return (
-    <main className="min-h-screen bg-[#FAF9F6] relative">
+    <main className="min-h-screen bg-[#fcf7f3] relative">
       
       {/* SECTION HERO */}
       <section className="relative h-[50vh] md:h-[58vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white">
@@ -160,7 +165,7 @@ export default function ContactPage({
               fileInput?.click(); // Déclenche l'upload local
             }
           }}
-          className={`absolute inset-0 bg-cover bg-center ${
+          className={`absolute inset-0 bg-cover bg-center grayscale ${
             isEditing ? 'cursor-pointer hover:brightness-90' : ''
           } ${isEditing && selectedKey === 'contact_hero_image' ? 'ring-4 ring-white/40 ring-inset' : ''}`}
           style={{
@@ -196,7 +201,7 @@ export default function ContactPage({
             onBlur={(e) => onUpdateText('contact_hero_heading', e.currentTarget.innerText || '')}
             onClick={() => isEditing && onSelectKey('contact_hero_heading')}
             style={getInlineStyle('contact_hero_heading')}
-            className={`font-serif text-3xl md:text-5xl lg:text-6xl tracking-wide font-light leading-tight text-white outline-none rounded-xs whitespace-pre-wrap ${
+            className={`font-serif text-3xl md:text-5xl lg:text-6xl tracking-wide font-light leading-tight text-white outline-none rounded-xs whitespace-pre-wrap ${getStampClass('contact_hero_heading')} ${
               isEditing ? 'hover:bg-white/10 cursor-text' : ''
             } ${isEditing && selectedKey === 'contact_hero_heading' ? 'border border-dashed border-white bg-white/10' : ''}`}
           >
@@ -224,10 +229,7 @@ export default function ContactPage({
      {/* SECTION : FORMULAIRE DE CONTACT DYNAMIQUE (LAYOUT FLEX ASYMÉTRIQUE AVEC 2 PHOTOS) */}
 <section 
   style={{
-    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='3' result='noise'/%3E%3CfeDiffuseLighting in='noise' lighting-color='%23F7F5F0' surfaceScale='1.0'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)'/%3E%3C/svg%3E")`,
-    backgroundRepeat: 'repeat', // Force la répétition du motif
-    backgroundSize: '180px 180px', // Maintient le grain très fin et précis
-    borderTop: '1px solid #E5E2D9'
+    backgroundColor: '#fcf7f3'
   }}
   className="py-20 md:py-32 px-6 lg:px-12 text-neutral-950"
 >
@@ -368,14 +370,14 @@ export default function ContactPage({
               fileInput?.click(); // Déclenche l'upload local autonome
             }
           }}
-          className={`absolute top-0 left-0 w-[55%] aspect-[3/4] overflow-hidden shadow-md -rotate-3 hover:rotate-0 transition-transform duration-500 cursor-pointer ${
+          className={`group absolute top-0 left-0 w-[55%] aspect-[3/4] overflow-hidden shadow-md -rotate-3 hover:rotate-0 transition-transform duration-500 cursor-pointer ${
             isEditing && selectedKey === 'contact_image_1' ? 'z-30 ring-4 ring-neutral-400 ring-inset' : 'z-10'
           }`}
         >
           <img
             src={getContent('contact_image_1', 'value_fr', 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=600&q=80')}
             alt="Méditation"
-            className="w-full h-full object-cover transition-transform duration-[2000ms] ease-out group-hover:scale-103"
+            className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-103 grayscale group-hover:grayscale-0"
           />
         </div>
 
@@ -388,14 +390,14 @@ export default function ContactPage({
               fileInput?.click();
             }
           }}
-          className={`absolute bottom-4 right-2 w-[48%] aspect-[3/4] overflow-hidden shadow-lg rotate-3 hover:rotate-0 transition-transform duration-500 cursor-pointer ${
+          className={`group absolute bottom-4 right-2 w-[48%] aspect-[3/4] overflow-hidden shadow-lg rotate-3 hover:rotate-0 transition-transform duration-500 cursor-pointer ${
             isEditing && selectedKey === 'contact_image_2' ? 'z-40 ring-4 ring-neutral-400 ring-inset' : 'z-20'
           }`}
         >
           <img
             src={getContent('contact_image_2', 'value_fr', 'https://images.unsplash.com/photo-1528319725582-ddc096101511?auto=format&fit=crop&w=600&q=80')}
             alt="Fumigation sacrée et rituel de passage"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-all duration-700 grayscale group-hover:grayscale-0"
           />
         </div>
 
@@ -429,7 +431,7 @@ export default function ContactPage({
           onBlur={(e) => onUpdateText('contact_form_heading', e.currentTarget.innerText || '')}
           onClick={() => isEditing && onSelectKey('contact_form_heading')}
           style={getInlineStyle('contact_form_heading')}
-          className={`font-serif text-3xl md:text-4xl tracking-wide font-light text-neutral-900 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${
+          className={`font-serif text-3xl md:text-4xl tracking-wide font-light text-neutral-900 leading-tight outline-none rounded-xs whitespace-pre-wrap block ${getStampClass('contact_form_heading')} ${
             isEditing ? 'hover:bg-[#FAF9F6] cursor-text' : ''
           } ${isEditing && selectedKey === 'contact_form_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
         >
@@ -531,13 +533,15 @@ export default function ContactPage({
 
 
 
-    <InstagramSection
-      dbContent={dbContent}
-      isEditing={isEditing}
-      onUpdateText={onUpdateText}
-      onSelectKey={onSelectKey}
-      selectedKey={selectedKey}
-    />
+    {isEditing && (
+      <InstagramSection
+        dbContent={dbContent}
+        isEditing={isEditing}
+        onUpdateText={onUpdateText}
+        onSelectKey={onSelectKey}
+        selectedKey={selectedKey}
+      />
+    )}
     </main>
   );
 }

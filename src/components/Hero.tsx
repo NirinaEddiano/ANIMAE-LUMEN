@@ -12,6 +12,7 @@ interface ContentItem {
   font_family: string;
   font_size: string;
   is_bold: boolean;
+  is_stamped: boolean;
   is_image: boolean;
 }
 
@@ -77,6 +78,11 @@ export default function Hero({
       fontFamily: item.font_family || undefined,
       fontWeight: item.is_bold ? 'bold' : undefined,
     };
+  };
+
+  const getStampClass = (key: string): string => {
+    const item = items.find((i) => i.key === key);
+    return item?.is_stamped ? 'effect-letterpress' : '';
   };
 
   const handleBlur = (key: string, e: React.FocusEvent<HTMLElement>) => {
@@ -151,7 +157,7 @@ export default function Hero({
             onBlur={(e) => handleBlur('home_hero_title', e)}
             onClick={() => handleClick('home_hero_title')}
             style={{ ...getStyle('home_hero_title'), fontWeight: 100 }}
-            className={`text-white font-serif text-4xl md:text-6xl lg:text-7xl tracking-[0.12em] leading-tight outline-none transition-all duration-200 ${
+            className={`text-white font-serif text-4xl md:text-6xl lg:text-7xl tracking-[0.12em] leading-tight outline-none transition-all duration-200 ${getStampClass('home_hero_title')} ${
               isEditing ? 'cursor-text' : ''
             } ${isEditing && selectedKey === 'home_hero_title' ? 'ring-2 ring-sage/40 bg-white/5' : ''}`}
           >

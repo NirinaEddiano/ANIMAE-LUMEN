@@ -75,6 +75,8 @@ export default function DynamicText({
       onClick={handleClick}
       style={style}
       className={`outline-none transition-all duration-200 ${
+        item?.is_stamped ? 'effect-letterpress' : ''
+      } ${
         className
       } ${
         isEditing ? 'cursor-text' : ''

@@ -43,12 +43,16 @@ export default function InstagramSection({
   onUpdateText = () => {},
   onSelectKey = () => {},
   selectedKey = null,
+  backgroundColor,
+  className,
 }: {
   dbContent?: any[];
   isEditing?: boolean;
   onUpdateText?: (key: string, value: string) => void;
   onSelectKey?: (key: string) => void;
   selectedKey?: string | null;
+  backgroundColor?: string;
+  className?: string;
 }) {
   const { language } = useLanguage();
   const [loading, setLoading] = useState(!isEditing);
@@ -133,13 +137,14 @@ export default function InstagramSection({
 
   return (
     <section 
-      style={{
+      style={backgroundColor ? {
+        backgroundColor
+      } : {
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='3' result='noise'/%3E%3CfeDiffuseLighting in='noise' lighting-color='%23F7F5F0' surfaceScale='1.0'%3E%3CfeDistantLight azimuth='45' elevation='60'/%3E%3C/feDiffuseLighting%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paper)'/%3E%3C/svg%3E")`,
         backgroundRepeat: 'repeat', // Évite l'étirement flou
         backgroundSize: '180px 180px', // Maintient le grain très fin et précis
-        borderTop: '1px solid #E5E2D9'
       }}
-      className="relative w-full py-16 md:py-24 overflow-hidden"
+      className={`relative w-full py-16 md:py-24 overflow-hidden ${className ?? ''}`}
     >
       <input
         type="file"
@@ -153,7 +158,7 @@ export default function InstagramSection({
         
         {/* Avatar */}
         <div
-          className={`w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden shadow-sm ring-2 ring-neutral-200 flex-shrink-0 relative ${
+          className={`group w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden shadow-sm ring-2 ring-neutral-200 flex-shrink-0 relative ${
             isEditing ? 'cursor-pointer hover:ring-sage/60' : ''
           }`}
           onClick={() => {
@@ -167,7 +172,7 @@ export default function InstagramSection({
             <img
               src={profileImg}
               alt="Instagram Avatar"
-              className="w-full h-full object-cover animate-fade-in"
+              className="w-full h-full object-cover animate-fade-in grayscale group-hover:grayscale-0 transition-all duration-700"
             />
           )}
           {uploading && (

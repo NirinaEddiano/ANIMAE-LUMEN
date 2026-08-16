@@ -7,8 +7,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        serif: ["var(--font-serif)", "ui-serif", "Georgia", "serif"],
-        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        serif: ["Minionpro", "serif"],
+        sans: ["Minionpro", "sans-serif"],
       },
       colors: {
         sand: "#F5F5F0",
