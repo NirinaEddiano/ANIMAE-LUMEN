@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/context/LanguageContext';
-import InstagramSection from '@/components/InstagramSection';
+import { isHiddenKey, readContent, readImage } from '@/lib/content';
 
 
 interface ContentItem {
@@ -24,18 +24,37 @@ const REQUIRED_KEYS = [
   'discover_hero_subtitle',
   'discover_services_title',
   'portfolio_grid_bg_texture',
-  'cat_1_title', 'cat_1_img',
-  'cat_2_title', 'cat_2_img',
-  'cat_3_title', 'cat_3_img',
-  'cat_4_title', 'cat_4_img',
+  'cat_1_title', 'cat_1_subtitle', 'cat_1_img',
+  'cat_2_title', 'cat_2_subtitle', 'cat_2_img',
+  'cat_3_title', 'cat_3_subtitle', 'cat_3_img',
 ];
 
 const CATEGORIES = [
-  { dbKey: 'cat_1', slug: 'retreats' },
-  { dbKey: 'cat_2', slug: 'festivals' },
-  { dbKey: 'cat_3', slug: 'ceremonies' },
-  { dbKey: 'cat_4', slug: 'portraits' },
+  { dbKey: 'cat_1', slug: 'souls' },
+  { dbKey: 'cat_2', slug: 'events' },
+  { dbKey: 'cat_3', slug: 'retreats' },
 ] as const;
+
+const DISCOVER_DEFAULTS: Record<string, { fr: string; en: string }> = {
+  discover_hero_title: { fr: 'Choisir une voie', en: 'Choose a path' },
+  discover_hero_subtitle: { fr: "L'univers d'ANIMAE LUMEN", en: 'The world of ANIMAE LUMEN' },
+  discover_services_title: { fr: 'MES GALERIES', en: 'MY GALLERIES' },
+  cat_1_title: { fr: 'ÂMES', en: 'SOULS' },
+  cat_1_subtitle: {
+    fr: 'Portraits et travail autour de l’humain',
+    en: 'Portraits and work around the human',
+  },
+  cat_2_title: { fr: 'ÉVÉNEMENTS', en: 'EVENTS' },
+  cat_2_subtitle: {
+    fr: 'Festivals, musique et événements, Travel',
+    en: 'Festivals, music and events, Travel',
+  },
+  cat_3_title: { fr: 'RETRAITES', en: 'RETREATS' },
+  cat_3_subtitle: {
+    fr: 'Retraites et cérémonies',
+    en: 'Retreats and ceremonies',
+  },
+};
 
 export default function DiscoverPage({
   isEditing = false,
@@ -52,27 +71,29 @@ export default function DiscoverPage({
 }) {
   const { language } = useLanguage();
   const [fetched, setFetched] = useState<ContentItem[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (isEditing) { setLoading(false); return; }
+    if (isEditing) return;
     supabase
       .from('site_content')
       .select('*')
       .in('key', REQUIRED_KEYS)
       .then(({ data }) => {
         if (data) setFetched(data);
-        setLoading(false);
       });
   }, [isEditing]);
 
   const items = isEditing ? dbContent : fetched;
 
-  const get = (key: string): string => {
-    const item = items.find((i) => i.key === key);
-    if (!item) return '';
-    return language === 'fr' ? item.value_fr : item.value_en;
-  };
+  // Masquage choisis par l'administrateur : un bloc disparait du site
+  // public quand TOUS ses contenus sont masques. La condition 'every'
+  // evite de laisser un trou de mise en page si un seul element reste.
+  const hidden = (...keys: string[]) => keys.every((k) => isHiddenKey(items, k));
+
+  const get = (key: string): string =>
+    readContent(items, key, language, DISCOVER_DEFAULTS[key]?.[language] ?? '');
+
+  const getImage = (key: string): string => readImage(items, key, '');
 
   const getStampClass = (key: string): string => {
     const item = items.find((i) => i.key === key);
@@ -100,15 +121,7 @@ export default function DiscoverPage({
     }
   };
 
-  if (loading) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-charcoal">
-        <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  const heroImg = get('discover_hero_image');
+  const heroImg = getImage('discover_hero_image');
   const heroTitle = get('discover_hero_title');
   const heroSub = get('discover_hero_subtitle');
   const servicesTitle = get('discover_services_title');
@@ -116,7 +129,7 @@ export default function DiscoverPage({
   return (
     <div className="min-h-screen w-full flex flex-col bg-[#fcf7f3]">
       {/* === ZONE 1 : Hero (50vh) === */}
-      <section className="relative h-[50vh] w-full flex items-center justify-center overflow-hidden">
+      <section className={`relative h-[50vh] w-full flex items-center justify-center overflow-hidden ${hidden('discover_hero_image', 'discover_hero_title', 'discover_hero_subtitle') ? 'hidden' : ''}`}>
         {heroImg && (
           <div
             onClick={() => handleImgClick('discover_hero_image')}
@@ -169,7 +182,7 @@ export default function DiscoverPage({
         style={{
           backgroundColor: '#fcf7f3'
         }}
-        className="relative h-[10vh] w-full flex items-center justify-center"
+        className={`relative h-[10vh] w-full flex items-center justify-center ${hidden('discover_services_title') ? 'hidden' : ''}`}
       >
         <h2
           contentEditable={isEditing}
@@ -184,14 +197,16 @@ export default function DiscoverPage({
         </h2>
       </section>
 
-      {/* === ZONE 3 : 4 voies — Grille 3 colonnes (le 4e sous le 1er), 1 colonne sur mobile === */}
-      <section className="relative w-full bg-[#fcf7f3] pt-4 md:pt-8 pb-16 md:pb-24 px-8 md:px-16">
-        <div className="relative z-10 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-1 md:gap-3">
+      {/* === ZONE 3 : 3 voies — grille 3 colonnes desktop, 1 colonne mobile === */}
+      <section className="relative w-full bg-[#fcf7f3] pt-4 md:pt-8 pb-16 md:pb-24 px-6 md:px-12">
+        <div className="relative z-10 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-1 md:gap-2">
           {CATEGORIES.map((cat) => {
             const imgKey = `${cat.dbKey}_img`;
             const titleKey = `${cat.dbKey}_title`;
-            const catImg = get(imgKey);
+            const subKey = `${cat.dbKey}_subtitle`;
+            const catImg = getImage(imgKey);
             const catTitle = get(titleKey);
+            const catSubtitle = get(subKey);
             const isSelected = isEditing && selectedKey === imgKey;
 
             return (
@@ -199,7 +214,7 @@ export default function DiscoverPage({
                 key={cat.slug}
                 href={`/services/${cat.slug}`}
                 onClick={(e) => { if (isEditing) e.preventDefault(); }}
-                className="relative group block h-[65vh] md:h-[60vh] overflow-hidden"
+                className="relative group block h-[58vh] md:h-[58vh] overflow-hidden"
               >
                 {catImg && (
                   <div
@@ -211,7 +226,7 @@ export default function DiscoverPage({
                   />
                 )}
 
-                <div className="absolute inset-0 bg-black/50 group-hover:bg-black/30 transition-all duration-500 z-[1]" />
+                <div className="absolute inset-0 bg-black/55 group-hover:bg-black/40 transition-all duration-500 z-[1]" />
 
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center px-6 text-center">
                   <span
@@ -219,30 +234,32 @@ export default function DiscoverPage({
                     suppressContentEditableWarning
                     onBlur={(e) => handleBlur(titleKey, e)}
                     onClick={() => isEditing && onSelectKey?.(titleKey)}
-                    className={`font-serif text-lg md:text-2xl lg:text-3xl tracking-[0.15em] text-white font-light outline-none transition-all duration-200 ${
+                    className={`font-sans text-[11px] md:text-xs tracking-[0.42em] uppercase text-white/90 font-light outline-none transition-all duration-200 ${
                       isEditing ? 'cursor-text' : ''
                     } ${isEditing && selectedKey === titleKey ? 'ring-2 ring-sage/40 bg-black/20' : ''}`}
                   >
                     {catTitle}
                   </span>
 
-                  <div className="w-0 group-hover:w-12 h-px bg-white/60 transition-all duration-500 mt-4" />
+                  <div className="w-0 group-hover:w-10 h-px bg-white/40 transition-all duration-500 mt-5" />
+
+                  <span
+                    contentEditable={isEditing}
+                    suppressContentEditableWarning
+                    onBlur={(e) => handleBlur(subKey, e)}
+                    onClick={() => isEditing && onSelectKey?.(subKey)}
+                    className={`mt-5 max-w-[22ch] font-serif text-[13px] md:text-sm leading-relaxed tracking-[0.02em] text-white/55 font-light outline-none transition-all duration-200 ${
+                      isEditing ? 'cursor-text' : ''
+                    } ${isEditing && selectedKey === subKey ? 'ring-2 ring-sage/40 bg-black/20' : ''}`}
+                  >
+                    {catSubtitle}
+                  </span>
                 </div>
               </Link>
             );
           })}
         </div>
 
-        {isEditing && (
-          <InstagramSection
-            dbContent={dbContent}
-            isEditing={isEditing}
-            onUpdateText={onUpdateText}
-            onSelectKey={onSelectKey}
-            selectedKey={selectedKey}
-            backgroundColor="#fcf7f3"
-          />
-        )}
       </section>
     </div>
   );

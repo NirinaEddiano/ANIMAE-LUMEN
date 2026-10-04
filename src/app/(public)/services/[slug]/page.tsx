@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/context/LanguageContext';
+import { fieldFor, isHiddenKey, readContent, readImage } from '@/lib/content';
 
 
 interface ContentItem {
@@ -19,23 +20,51 @@ interface ContentItem {
 }
 
 const CATEGORY_LABELS: Record<string, { fr: string; en: string }> = {
-  retreats: { fr: 'Retraites Spirituelles', en: 'Spiritual Retreats' },
-  festivals: { fr: 'Festivals Conscients', en: 'Conscious Festivals' },
-  ceremonies: { fr: 'Cérémonies Sacrées', en: 'Sacred Ceremonies' },
-  portraits: { fr: 'Portraits Thérapeutiques', en: 'Therapeutic Portraits' },
+  souls: { fr: 'Âmes', en: 'Souls' },
+  events: { fr: 'Événements', en: 'Events' },
+  retreats: { fr: 'Retraites', en: 'Retreats' },
 };
 
-const autoTranslate = async (text: string): Promise<string> => {
-  try {
-    const res = await fetch(
-      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=fr&tl=en&dt=t&q=${encodeURIComponent(text)}`
-    );
-    const data = await res.json();
-    if (data?.[0]) return data[0].map((s: any) => s[0]).join('');
-    return text;
-  } catch {
-    return text;
-  }
+// Les 3 services. Les anciennes catégories de la base sont encore mappées ici
+// pour que les pages restent alimentées avant l'exécution de la migration SQL.
+export const CATEGORY_ALIASES: Record<string, string[]> = {
+  souls: ['souls', 'portraits'],
+  events: ['events', 'festivals'],
+  retreats: ['retreats', 'ceremonies'],
+};
+
+// Replis code par catégorie : garantissent que le site reste en anglais même si
+// la base contient une value_en identique au français (traduction jamais faite).
+const SERVICE_DEFAULTS: Record<string, { title: { fr: string; en: string }; desc: { fr: string; en: string } }> = {
+  souls: {
+    title: { fr: 'ÂMES', en: 'SOULS' },
+    desc: {
+      fr: 'Portraits et travail autour de l’humain',
+      en: 'Portraits and work around the human',
+    },
+  },
+  events: {
+    title: { fr: 'ÉVÉNEMENTS', en: 'EVENTS' },
+    desc: {
+      fr: 'Festivals, musique et événements, Travel',
+      en: 'Festivals, music and events, Travel',
+    },
+  },
+  retreats: {
+    title: { fr: 'RETRAITES', en: 'RETREATS' },
+    desc: {
+      fr: 'Retraites et cérémonies',
+      en: 'Retreats and ceremonies',
+    },
+  },
+};
+
+// Photo de hero par défaut : les 3 services en ont une, la page n'affiche
+// jamais un cadre noir nu. Modifiable depuis l'admin (clé `hero_<service>_bg`).
+const SERVICE_HERO: Record<string, string> = {
+  souls: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1600&q=80',
+  events: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1600&q=80',
+  retreats: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1600&q=80',
 };
 
 export default function ServiceCategoryPage({
@@ -44,41 +73,60 @@ export default function ServiceCategoryPage({
   onSelectKey,
   onUpdateText,
   dbContent = [],
+  forcedSlug,
 }: {
   isEditing?: boolean;
   selectedKey?: string | null;
   onSelectKey?: (key: string) => void;
   onUpdateText?: (key: string, value: string) => void;
   dbContent?: any[];
+  /** Utilisé par l'admin pour éditer un service sans passer par la route. */
+  forcedSlug?: string;
 }) {
-  const { slug } = useParams<{ slug: string }>();
+  const params = useParams<{ slug: string }>();
   const { language } = useLanguage();
 
+  const slug = forcedSlug ?? params.slug;
+
   const prefix = `hero_${slug}`;
-  const HERO_KEYS = [`${prefix}_title`, `${prefix}_desc`, `${prefix}_bg`, 'portfolio_grid_bg_texture'];
+  const images = SERVICE_HERO[slug] ?? SERVICE_HERO.souls;
+
+  const HERO_KEYS = [
+    `${prefix}_title`, `${prefix}_desc`, `${prefix}_bg`,
+  ];
+  const categories = CATEGORY_ALIASES[slug] ?? [slug];
 
   const [fetchedContent, setFetchedContent] = useState<ContentItem[]>([]);
   const [portfolios, setPortfolios] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (isEditing) { setLoading(false); return; }
+    if (isEditing) return;
     Promise.all([
       supabase.from('site_content').select('*').in('key', HERO_KEYS),
-      supabase.from('portfolios').select('*').eq('category', slug),
+      supabase.from('portfolios').select('*').in('category', categories),
     ]).then(([contentRes, portfolioRes]) => {
       if (contentRes.data) setFetchedContent(contentRes.data);
       if (portfolioRes.data) setPortfolios(portfolioRes.data);
-      setLoading(false);
     });
   }, [slug, isEditing]);
 
   const items = isEditing ? dbContent : fetchedContent;
 
+  // Masquage choisis par l'administrateur : un bloc disparait du site
+  // public quand TOUS ses contenus sont masques. La condition 'every'
+  // evite de laisser un trou de mise en page si un seul element reste.
+  const hidden = (...keys: string[]) => keys.every((k) => isHiddenKey(items, k));
+
+  const defaults = SERVICE_DEFAULTS[slug];
   const get = (key: string): string => {
-    const item = items.find((i) => i.key === key);
-    if (!item) return '';
-    return language === 'fr' ? item.value_fr : item.value_en;
+    if (key === `${prefix}_title`) return readContent(items, key, language, defaults?.title[language] ?? '');
+    if (key === `${prefix}_desc`) return readContent(items, key, language, defaults?.desc[language] ?? '');
+    return readContent(items, key, language, '');
+  };
+
+  const getImage = (key: string): string => {
+    if (key === `${prefix}_bg`) return readImage(items, key, images);
+    return readImage(items, key, '');
   };
 
   const getStampClass = (key: string): string => {
@@ -86,17 +134,12 @@ export default function ServiceCategoryPage({
     return item?.is_stamped ? 'effect-letterpress' : '';
   };
 
-  const handleBlur = async (key: string, e: React.FocusEvent<HTMLElement>) => {
+  const handleBlur = (key: string, e: React.FocusEvent<HTMLElement>) => {
     const val = e.currentTarget.innerText || '';
     if (isEditing && onUpdateText) {
       onUpdateText(key, val);
     } else if (isEditing) {
-      const translated = await autoTranslate(val);
-      await supabase.from('site_content').upsert({
-        key,
-        value_fr: val,
-        value_en: translated,
-      }).eq('key', key);
+      supabase.from('site_content').update({ [fieldFor(language)]: val }).eq('key', key).then();
     }
   };
 
@@ -107,24 +150,16 @@ export default function ServiceCategoryPage({
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-charcoal">
-        <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const labels = CATEGORY_LABELS[slug] ?? { fr: slug, en: slug };
 
-  const labels = CATEGORY_LABELS[slug] || { fr: slug, en: slug };
-  const heroBg = get(`${prefix}_bg`);
-  const heroTitle = get(`${prefix}_title`);
+  const heroBg = getImage(`${prefix}_bg`);
+  const heroTitle = get(`${prefix}_title`) || labels[language];
   const heroDesc = get(`${prefix}_desc`);
-  const portfolioGridTexture = get('portfolio_grid_bg_texture');
 
   return (
     <main className="min-h-screen bg-[#FAF9F6]">
       {/* === HERO (50vh) === */}
-      <section className="relative h-[50vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white">
+      <section className={`relative h-[50vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white ${hidden(`${prefix}_bg`, `${prefix}_title`, `${prefix}_desc`) ? 'hidden' : ''}`}>
         {heroBg && (
           <div
             onClick={() => handleImgClick(`${prefix}_bg`)}
@@ -147,8 +182,8 @@ export default function ServiceCategoryPage({
           }}
         />
 
-        <div className="relative z-10 text-center max-w-3xl space-y-4 md:space-y-6 px-4">
-          <span className="font-sans text-[10px] md:text-xs tracking-[0.35em] uppercase font-light text-neutral-300 block">
+        <div className="relative z-10 text-center max-w-3xl space-y-5 md:space-y-7 px-4">
+          <span className="font-sans text-[9px] md:text-[10px] tracking-[0.5em] uppercase font-light text-neutral-400/80 block">
             {language === 'fr' ? labels.fr : labels.en}
           </span>
 
@@ -157,19 +192,21 @@ export default function ServiceCategoryPage({
             suppressContentEditableWarning
             onBlur={(e) => handleBlur(`${prefix}_title`, e)}
             onClick={() => isEditing && onSelectKey?.(`${prefix}_title`)}
-            className={`font-serif text-3xl md:text-5xl lg:text-6xl tracking-wide font-light leading-tight text-white outline-none transition-all duration-200 ${getStampClass(`${prefix}_title`)} ${
+            className={`font-sans text-[13px] md:text-sm tracking-[0.42em] uppercase font-light text-white/85 outline-none transition-all duration-200 ${getStampClass(`${prefix}_title`)} ${
               isEditing ? 'cursor-text' : ''
             } ${isEditing && selectedKey === `${prefix}_title` ? 'ring-2 ring-sage/40 bg-white/5' : ''}`}
           >
             {heroTitle}
           </h1>
 
+          <div className="w-8 h-px bg-white/25 mx-auto" />
+
           <p
             contentEditable={isEditing}
             suppressContentEditableWarning
             onBlur={(e) => handleBlur(`${prefix}_desc`, e)}
             onClick={() => isEditing && onSelectKey?.(`${prefix}_desc`)}
-            className={`font-sans text-xs md:text-sm tracking-[0.12em] leading-relaxed font-light text-neutral-200 max-w-xl mx-auto outline-none transition-all duration-200 ${
+            className={`font-serif text-[13px] md:text-sm leading-relaxed tracking-[0.02em] font-light text-neutral-300/70 max-w-sm mx-auto outline-none transition-all duration-200 ${
               isEditing ? 'cursor-text' : ''
             } ${isEditing && selectedKey === `${prefix}_desc` ? 'ring-2 ring-sage/40 bg-white/5' : ''}`}
           >
@@ -183,7 +220,7 @@ export default function ServiceCategoryPage({
         style={{
           backgroundColor: '#fcf7f3'
         }}
-        className="relative w-full overflow-hidden pt-16 md:pt-24 pb-16 md:pb-24 px-8 md:px-16"
+        className={`relative w-full overflow-hidden pt-16 md:pt-24 pb-16 md:pb-24 px-8 md:px-16 ${hidden(`${prefix}_body`) ? 'hidden' : ''}`}
       >
         <div className="relative z-10 max-w-6xl mx-auto">
         {portfolios.length === 0 ? (

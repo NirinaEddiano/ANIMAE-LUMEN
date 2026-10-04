@@ -49,17 +49,7 @@ export default function DynamicHero({
       {/* Contenu central */}
       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-6">
         <div className="max-w-3xl space-y-10">
-          <DynamicText
-            dbKey="home_hero_title"
-            as="h1"
-            className="text-white font-serif text-[clamp(3rem,12vw,8rem)] tracking-[0.06em] leading-[0.95]"
-            defaultText="Une quête de présence"
-            isEditing={isEditing}
-            selectedKey={selectedKey}
-            onSelectKey={onSelectKey}
-            onUpdateText={onUpdateText}
-            dbContent={dbContent}
-          />
+          <h1 className="text-white font-serif text-[clamp(3rem,12vw,8rem)] tracking-[0.06em] leading-[0.95]">ANIMAE LUMEN</h1>
 
           <DynamicText
             dbKey="home_hero_intro"

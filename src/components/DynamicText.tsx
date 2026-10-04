@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabase } from '@/lib/supabase';
+import { fontFamilyWithFallback, isHidden, isUntranslated } from '@/lib/content';
 
 interface DynamicTextProps {
   dbKey: string;
@@ -46,14 +47,21 @@ export default function DynamicText({
     ? dbContent.find((i: any) => i.key === dbKey)
     : localItem;
 
-  const value = item
-    ? (language === 'fr' ? item.value_fr : item.value_en)
-    : defaultText;
+  // EN identique au FR (traduction jamais faite) → repli anglais codé en dur.
+  // Côté FR, value_fr fait toujours foi.
+  const value = !item || (language === 'en' && isUntranslated(item))
+    ? defaultText
+    : (((language === 'fr' ? item.value_fr : item.value_en) || '').trim() || defaultText);
 
   const isSelected = isEditing && selectedKey === dbKey;
 
+  // Masquage choisi par l'admin : rien ne s'affiche sur le site public. En
+  // edition l'element reste visible en fantome, sinon il serait impossible a
+  // retrouver pour le reafficher.
+  const hidden = isHidden(item);
+
   const style: React.CSSProperties = {};
-  if (item?.font_family) style.fontFamily = item.font_family;
+  if (item?.font_family) style.fontFamily = fontFamilyWithFallback(item.font_family);
   if (item?.font_size) style.fontSize = item.font_size;
   if (item?.is_bold) style.fontWeight = 'bold';
 
@@ -66,6 +74,8 @@ export default function DynamicText({
       onUpdateText(dbKey, e.currentTarget.innerText || '');
     }
   };
+
+  if (hidden && !isEditing) return null;
 
   return (
     <Tag
@@ -82,9 +92,11 @@ export default function DynamicText({
         isEditing ? 'cursor-text' : ''
       } ${
         isSelected ? 'ring-2 ring-sage/40 bg-sand/30' : ''
+      } ${
+        hidden ? 'opacity-40 line-through decoration-charcoal/40' : ''
       }`}
     >
-      {value}
+      {hidden ? `[masqué] ${value}` : value}
     </Tag>
   );
 }

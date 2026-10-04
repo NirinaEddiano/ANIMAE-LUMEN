@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabase } from '@/lib/supabase';
+import { isHidden } from '@/lib/content';
 
 interface DynamicImageProps {
   dbKey: string;
@@ -48,25 +49,34 @@ export default function DynamicImage({
     ? dbContent.find((i: any) => i.key === dbKey)
     : localItem;
 
-  const url = item
-    ? (language === 'fr' ? item.value_fr : item.value_en)
-    : defaultImage;
+  // Les URL sont identiques dans les deux colonnes : on accepte les deux.
+  const url = item?.value_en || item?.value_fr || defaultImage;
 
   const isSelected = isEditing && selectedKey === dbKey;
+
+  // Masquage choisi par l'admin. En edition la photo reste cliquable pour
+  // pouvoir etre reaffichee ou remplacee.
+  const hidden = isHidden(item);
 
   const handleClick = () => {
     if (isEditing && onSelectKey) {
       onSelectKey(dbKey);
-      document.querySelector<HTMLInputElement>('input[type="file"]')?.click();
+      // Input dedie a l'upload de contenu : un selecteur global
+      // 'input[type="file"]' pouvait viser celui d'une autre section.
+      document.querySelector<HTMLInputElement>('input[data-site-upload="content"]')?.click();
     }
   };
+
+  if (hidden && !isEditing) return null;
 
   return (
     <div
       onClick={handleClick}
       className={`overflow-hidden ${containerClassName} ${
         isEditing ? 'cursor-pointer hover:brightness-90' : ''
-      } ${isSelected ? 'ring-4 ring-sage/40 ring-inset' : ''}`}
+      } ${isSelected ? 'ring-4 ring-sage/40 ring-inset' : ''} ${
+        hidden ? 'opacity-40 ring-2 ring-dashed ring-charcoal/40' : ''
+      }`}
       role={isEditing ? 'button' : undefined}
       tabIndex={isEditing ? 0 : undefined}
     >
@@ -74,7 +84,7 @@ export default function DynamicImage({
         <img
           src={url}
           alt={alt}
-          className={`w-full h-full object-cover ${className}`}
+          className={`w-full h-full object-cover ${className} ${hidden ? 'grayscale' : ''}`}
         />
       ) : (
         <div className={`w-full h-full bg-sage/10 ${className}`} />

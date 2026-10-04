@@ -7,8 +7,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        serif: ["Minionpro", "serif"],
-        sans: ["Minionpro", "sans-serif"],
+        serif: ['"Minionpro"', '"EB Garamond"', "Georgia", "serif"],
+        sans: ['"Minionpro"', '"EB Garamond"', "Georgia", "serif"],
       },
       colors: {
         sand: "#F5F5F0",

@@ -1,9 +1,66 @@
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   MINION PRO — police commerciale Linotype.
+   Elle n'est ni sur Google Fonts ni livrée par Next.js : le navigateur ne peut
+   donc pas la telecharger tout seul. On declare les trois sources possibles,
+   dans l'ordre de priorite :
+
+     1. local()  -> la copie installee sur la machine du visiteur. C'est ce qui
+                    fait que les sites qui "ont reellement" Minionpro
+                    l'affichent : elle est installee chez le createur.
+     2. url()   -> VOUS deposez votre fichier licencie dans
+                    /public/fonts/MinionPro-Regular.otf (et Bold, etc.).
+                    Renommez-le MinionPro-<variante>.otf si vous en avez
+                    plusieurs : voir les blocs ci-dessous.
+     3. EB Garamond en dernier recours (deja charge via Google Fonts dans
+        layout.tsx) : proche dans l'esprit, le site reste elegant tant que
+        le vrai binaire n'est pas fourni.
+
+   Sans ce bloc, font-family tombe sur une fonte generique et toute la typo
+   du site est fausse. Ne pas supprimer.
+   ───────────────────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: "Minionpro";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local("MinionPro-Regular"), local("MinionPro Regular"), local("Minion Pro Regular"), local("Minionpro"),
+    url("/fonts/MinionPro-Regular.otf") format("opentype");
+}
+@font-face {
+  font-family: "Minionpro";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local("MinionPro-It"), local("MinionPro Italic"), local("Minion Pro Italic"),
+    url("/fonts/MinionPro-It.otf") format("opentype");
+}
+@font-face {
+  font-family: "Minionpro";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src:
+    local("MinionPro-Medium"), local("MinionPro Medium"), local("Minion Pro Medium"),
+    url("/fonts/MinionPro-Medium.otf") format("opentype");
+}
+@font-face {
+  font-family: "Minionpro";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src:
+    local("MinionPro-Bold"), local("MinionPro Bold"), local("Minion Pro Bold"),
+    url("/fonts/MinionPro-Bold.otf") format("opentype");
+}
+
 @theme {
-  --font-sans: Minionpro, sans-serif;
-  --font-serif: Minionpro, serif;
+  --font-sans: "Minionpro", "EB Garamond", Georgia, serif;
+  --font-serif: "Minionpro", "EB Garamond", Georgia, serif;
 
   --color-sand: #F5F5F0;
   --color-sage: #8A9A86;
@@ -16,14 +73,37 @@
   --shadow-organic-lg: 0 8px 40px rgba(139, 115, 85, 0.12);
 }
 
+/* Valeurs alignees sur la reference : corps 18px / interligne 28px.
+   L'ancien 20px / 1.7 faisait 34px d'interligne, trop lache pour un rendu
+   fin et discret. */
 body {
-  font-family: Minionpro, sans-serif;
-  font-size: 20px;
-  line-height: 1.7;
+  font-family: "Minionpro", "EB Garamond", Georgia, serif;
+  font-size: 19px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* Le header est en position fixed sur TOUTES les pages (cf. Header.tsx) sans
+   aucune hauteur de compensation : le contenu demarrait dessous. scroll-padding
+   evite en plus qu'un lien d'ancre passe sous le header. */
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 64px;
+}
+
+@media (max-width: 767px) {
+  html {
+    scroll-padding-top: 56px;
+  }
+}
+
+/* Signature discrete placee sous le nom du site. Plus petite que le nom,
+   visible mais en retrait. */
+.site-byline {
+  font-family: "Minionpro", "EB Garamond", Georgia, serif;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: lowercase;
 }
 
 .effect-letterpress {

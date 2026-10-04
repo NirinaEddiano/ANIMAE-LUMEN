@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import InstagramSection from '@/components/InstagramSection';
+import { fontFamilyWithFallback, isHiddenKey, isUntranslated } from '@/lib/content';
 
 // 1. Traductions de la section Hero d'À Propos
 const aboutHeroTranslations = {
@@ -56,56 +56,6 @@ const aboutExperienceTranslations = {
   }
 };
 
-const aboutSignatureTranslations = {
-  fr: {
-    tagline: "La signature artistique",
-    heading: "Les outils de l'invisible",
-    items: [
-      {
-        title: "La Lumière Pure",
-        subtitle: "Prismes & Réfractions",
-        description: "Je n'utilise aucun éclairage artificiel. Je travaille uniquement avec le soleil, capturant les prismes et les réfractions naturelles de l'air pour envelopper mes sujets d'un voile de lumière céleste.",
-        imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80"
-      },
-      {
-        title: "Le Grain Organique",
-        subtitle: "Texture & Intemporalité",
-        description: "Mes images intègrent un grain doux et une texture organique inspirée de la pellicule argentique. Cela donne à l'image numérique une dimension intemporelle, brute et presque palpable au toucher.",
-        imageUrl: "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?auto=format&fit=crop&w=600&q=80"
-      },
-      {
-        title: "L'Obturateur Silencieux",
-        subtitle: "Présence & Discrétion",
-        description: "Le silence est mon outil le plus précieux. Grâce à un équipement haut de gamme sans aucun bruit de déclenchement, je me fonds dans vos rituels pour préserver la vérité pure de vos cercles.",
-        imageUrl: "https://images.unsplash.com/photo-1528319725582-ddc096101511?auto=format&fit=crop&w=600&q=80"
-      }
-    ]
-  },
-  en: {
-    tagline: "The artistic signature",
-    heading: "Tools of the unseen",
-    items: [
-      {
-        title: "Pure Light",
-        subtitle: "Prisms & Refractions",
-        description: "I use no artificial lighting. I work exclusively with the sun, capturing natural prisms and refractions to wrap my subjects in a celestial veil of golden light.",
-        imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80"
-      },
-      {
-        title: "Organic Grain",
-        subtitle: "Texture & Timelessness",
-        description: "My images integrate a soft grain and an organic texture inspired by analog film. This gives the digital medium a timeless, raw, and almost tactile quality.",
-        imageUrl: "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?auto=format&fit=crop&w=600&q=80"
-      },
-      {
-        title: "Silent Shutter",
-        subtitle: "Presence & Discretion",
-        description: "Silence is my most precious tool. Thanks to high-end equipment with zero trigger noise, I seamlessly blend into your rituals to preserve the absolute truth of your spaces.",
-        imageUrl: "https://images.unsplash.com/photo-1528319725582-ddc096101511?auto=format&fit=crop&w=600&q=80"
-      }
-    ]
-  }
-};
 
 const ctaSectionTranslations = {
   fr: {
@@ -150,16 +100,32 @@ export default function AboutPage({
 
   const activeContent = isEditing ? dbContent : localDbContent;
 
+  // Masquage choisis par l'administrateur : un bloc disparait du site
+  // public quand TOUS ses contenus sont masques. La condition 'every'
+  // evite de laisser un trou de mise en page si un seul element reste.
+  const hidden = (...keys: string[]) => keys.every((k) => isHiddenKey(activeContent, k));
+
   const getContent = (key: string, field: 'value_fr' | 'value_en', defaultValue: string) => {
     const item = activeContent.find((i: any) => i.key === key);
-    return item ? item[field] : defaultValue;
+    // EN identique au FR (traduction jamais faite) → repli anglais codé en dur.
+    // Côté FR, value_fr fait toujours foi.
+    if (!item || (field === 'value_en' && isUntranslated(item))) return defaultValue;
+    return ((item[field] as string) || '').trim() || defaultValue;
+  };
+
+  const getImage = (key: string, defaultValue: string) => {
+    const item = activeContent.find((i: { key: string }) => i.key === key) as
+      | { value_fr?: string; value_en?: string }
+      | undefined;
+    // Les URL d'images sont identiques dans les deux colonnes : on accepte les deux.
+    return item?.value_en || item?.value_fr || defaultValue;
   };
 
   const getInlineStyle = (key: string) => {
     const item = activeContent.find((i: any) => i.key === key);
     if (!item) return {};
     return {
-      fontFamily: item.font_family,
+      fontFamily: fontFamilyWithFallback(item.font_family),
       fontSize: item.font_size,
       fontWeight: item.is_bold ? 'bold' : 'light' as const,
     };
@@ -195,7 +161,7 @@ export default function AboutPage({
     <main className="min-h-screen bg-[#fcf7f3]">
       
       {/* SECTION HERO */}
-      <section className="relative h-[50vh] md:h-[58vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white">
+      <section className={`relative h-[50vh] md:h-[58vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white ${hidden('about_hero_image', 'about_hero_tagline', 'about_hero_heading', 'about_hero_subheading') ? 'hidden' : ''}`}>
         
         <div
           onClick={() => handleImageClick('about_hero_image')}
@@ -203,7 +169,7 @@ export default function AboutPage({
             isEditing ? 'cursor-pointer hover:brightness-90' : ''
           } ${isEditing && selectedKey === 'about_hero_image' ? 'ring-4 ring-white/40 ring-inset' : ''}`}
           style={{
-            backgroundImage: `url(${getContent('about_hero_image', 'value_fr', 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1600&q=80')})`,
+            backgroundImage: `url(${getImage('about_hero_image', 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1600&q=80')})`,
           }}
         />
 
@@ -256,7 +222,7 @@ export default function AboutPage({
       </section>
 
      {/* SECTION 1 : L'ESSENCE DE L'INSTANT — Intro éditoriale + grille plein cadre serrée */}
-<section className="relative overflow-hidden bg-[#fcf7f3] py-20 md:py-32 px-6 lg:px-12 text-neutral-950">
+<section className={`relative overflow-hidden bg-[#fcf7f3] py-20 md:py-32 px-6 lg:px-12 text-neutral-950 ${hidden('about_tagline', 'about_subtitle', 'about_heading', 'about_paragraph_1', 'about_paragraph_2', 'about_paragraph_3') ? 'hidden' : ''}`}>
   <div className="max-w-4xl mx-auto text-center">
 
     {/* INTRO ÉDITORIALE (style souls) */}
@@ -370,7 +336,7 @@ export default function AboutPage({
           }`}
         >
           <img
-            src={getContent(IMAGE_KEYS[i], 'value_fr', IMAGE_FALLBACKS[i])}
+            src={getImage(IMAGE_KEYS[i], IMAGE_FALLBACKS[i])}
             alt=""
             className="absolute inset-0 w-full h-full object-cover transition-all duration-700 grayscale group-hover:grayscale-0"
           />
@@ -381,7 +347,7 @@ export default function AboutPage({
 </section>
 
 {/* SECTION 2 : L'EXPÉRIENCE DE L'ESPACE SACRÉ — Arche éditoriale, composition asymétrique */}
-<section className="relative overflow-hidden bg-[#fcf7f3] py-20 md:py-32 px-6 lg:px-12">
+<section className={`relative overflow-hidden bg-[#fcf7f3] py-20 md:py-32 px-6 lg:px-12 ${hidden('experience_tagline', 'experience_heading', 'experience_desc1', 'experience_desc2', 'experience_image_1', 'experience_image_2') ? 'hidden' : ''}`}>
   <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
     
     {/* COLONNE GAUCHE (5/12) : Texte ajusté */}
@@ -457,7 +423,7 @@ export default function AboutPage({
           } ${isEditing && selectedKey === 'experience_image_1' ? 'ring-4 ring-neutral-400' : ''}`}
         >
           <img
-            src={getContent('experience_image_1', 'value_fr', 'https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?auto=format&fit=crop&w=800&q=80')}
+            src={getImage('experience_image_1', 'https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?auto=format&fit=crop&w=800&q=80')}
             alt=""
             className="absolute inset-0 w-full h-full object-cover transition-all duration-700 grayscale group-hover:grayscale-0"
           />
@@ -471,7 +437,7 @@ export default function AboutPage({
           } ${isEditing && selectedKey === 'experience_image_2' ? 'ring-4 ring-neutral-400' : ''}`}
         >
           <img
-            src={getContent('experience_image_2', 'value_fr', 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=600&q=80')}
+            src={getImage('experience_image_2', 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=600&q=80')}
             alt=""
             className="absolute inset-0 w-full h-full object-cover transition-all duration-700 grayscale group-hover:grayscale-0"
           />
@@ -484,122 +450,9 @@ export default function AboutPage({
   </div>
 </section>
 
-{/* SECTION 3 : LES OUTILS DE L'INVISIBLE — Formes organiques "blob", fond unifié */}
-<section className="relative overflow-hidden bg-[#fcf7f3] py-20 md:py-32 px-6 lg:px-12 text-neutral-950">
-
-  <div className="relative z-10 max-w-6xl mx-auto space-y-16 md:space-y-24">
-    
-    <div className="text-center space-y-4 max-w-xl mx-auto">
-      
-      <span
-        contentEditable={isEditing}
-        suppressContentEditableWarning={true}
-        onBlur={(e) => onUpdateText('signature_tagline', e.currentTarget.innerText || '')}
-        onClick={() => isEditing && onSelectKey('signature_tagline')}
-        style={getInlineStyle('signature_tagline')}
-        className={`font-sans text-xs tracking-[0.3em] uppercase font-light text-neutral-400 block outline-none rounded-xs whitespace-pre-wrap ${
-          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-        } ${isEditing && selectedKey === 'signature_tagline' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
-      >
-        {getContent('signature_tagline', language === 'fr' ? 'value_fr' : 'value_en', aboutSignatureTranslations[language].tagline)}
-      </span>
-
-      <h2
-        contentEditable={isEditing}
-        suppressContentEditableWarning={true}
-        onBlur={(e) => onUpdateText('signature_heading', e.currentTarget.innerText || '')}
-        onClick={() => isEditing && onSelectKey('signature_heading')}
-        style={getInlineStyle('signature_heading')}
-        className={`font-serif text-3xl md:text-5xl tracking-wide font-light text-neutral-800 leading-tight outline-none rounded-xs whitespace-pre-wrap block art-letterpress ${getStampClass('signature_heading')} ${
-          isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-        } ${isEditing && selectedKey === 'signature_heading' ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
-      >
-        {getContent('signature_heading', language === 'fr' ? 'value_fr' : 'value_en', aboutSignatureTranslations[language].heading)}
-      </h2>
-
-      <div className="w-12 h-[1px] bg-neutral-300 mx-auto mt-6" />
-    </div>
-
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1 md:gap-3">
-      {[0, 1, 2].map((index) => {
-        const item = aboutSignatureTranslations[language].items[index];
-        const imageKey = `signature_image_${index}`;
-        const subtitleKey = `signature_subtitle_${index}`;
-        const titleKey = `signature_title_${index}`;
-        const descKey = `signature_description_${index}`;
-        const isSelected = selectedKey === imageKey;
-
-        return (
-          <div key={index} className="flex flex-col group">
-            {/* Carte image plein cadre */}
-            <div
-              onClick={() => handleImageClick(imageKey)}
-              className={`overflow-hidden w-full cursor-pointer ${
-                isEditing && isSelected ? 'ring-4 ring-neutral-400' : ''
-              }`}
-            >
-              <div className="aspect-[3/4] relative">
-                <img
-                  src={getContent(imageKey, 'value_fr', item.imageUrl)}
-                  alt={item.title}
-                  className="absolute inset-0 w-full h-full object-cover transition-all duration-700 ease-out grayscale group-hover:grayscale-0 group-hover:scale-105"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2 mt-5 md:mt-6 text-left">
-
-              <span
-                contentEditable={isEditing}
-                suppressContentEditableWarning={true}
-                onBlur={(e) => onUpdateText(subtitleKey, e.currentTarget.innerText || '')}
-                onClick={() => isEditing && onSelectKey(subtitleKey)}
-                style={getInlineStyle(subtitleKey)}
-                className={`font-sans text-xs tracking-[0.25em] uppercase text-neutral-800 font-light block outline-none rounded-xs whitespace-pre-wrap ${
-                  isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-                } ${isEditing && selectedKey === subtitleKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
-              >
-                {getContent(subtitleKey, language === 'fr' ? 'value_fr' : 'value_en', item.subtitle)}
-              </span>
-
-              <h3
-                contentEditable={isEditing}
-                suppressContentEditableWarning={true}
-                onBlur={(e) => onUpdateText(titleKey, e.currentTarget.innerText || '')}
-                onClick={() => isEditing && onSelectKey(titleKey)}
-                style={getInlineStyle(titleKey)}
-                className={`font-serif text-2xl md:text-3xl tracking-wide font-light text-black leading-snug outline-none rounded-xs whitespace-pre-wrap block ${
-                  isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-                } ${isEditing && selectedKey === titleKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
-              >
-                {getContent(titleKey, language === 'fr' ? 'value_fr' : 'value_en', item.title)}
-              </h3>
-
-              <p
-                contentEditable={isEditing}
-                suppressContentEditableWarning={true}
-                onBlur={(e) => onUpdateText(descKey, e.currentTarget.innerText || '')}
-                onClick={() => isEditing && onSelectKey(descKey)}
-                style={getInlineStyle(descKey)}
-                className={`font-sans text-sm md:text-base font-light text-neutral-900 leading-relaxed tracking-wide pt-2 outline-none rounded-xs whitespace-pre-wrap block ${
-                  isEditing ? 'hover:bg-neutral-100 cursor-text' : ''
-                } ${isEditing && selectedKey === descKey ? 'border border-dashed border-neutral-400 bg-neutral-100' : ''}`}
-              >
-                {getContent(descKey, language === 'fr' ? 'value_fr' : 'value_en', item.description)}
-              </p>
-
-            </div>
-
-          </div>
-        );
-      })}
-    </div>
-
-  </div>
-</section>
 
 {/* SECTION CTA */}
-<section className="relative h-[65vh] md:h-[75vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white">
+<section className={`relative h-[65vh] md:h-[75vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white ${hidden('about_cta_bg_image', 'about_cta_tagline', 'about_cta_heading', 'about_cta_description', 'about_cta_button_text') ? 'hidden' : ''}`}>
   
   <div
     onClick={() => handleImageClick('about_cta_bg_image')}
@@ -607,7 +460,7 @@ export default function AboutPage({
       isEditing ? 'cursor-pointer hover:brightness-90' : ''
     } ${isEditing && selectedKey === 'about_cta_bg_image' ? 'ring-4 ring-white/40 ring-inset' : ''}`}
     style={{
-      backgroundImage: `url(${getContent('about_cta_bg_image', 'value_fr', 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80')})`,
+      backgroundImage: `url(${getImage('about_cta_bg_image', 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80')})`,
     }}
   />
 
@@ -679,15 +532,6 @@ export default function AboutPage({
   </div>
 </section>
 
-    {isEditing && (
-      <InstagramSection
-        dbContent={dbContent}
-        isEditing={isEditing}
-        onUpdateText={onUpdateText}
-        onSelectKey={onSelectKey}
-        selectedKey={selectedKey}
-      />
-    )}
     </main>
   );
 }

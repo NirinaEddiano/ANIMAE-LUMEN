@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -7,10 +7,12 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
 const CATEGORY_LABELS: Record<string, { fr: string; en: string }> = {
-  retreats: { fr: 'Retraites Spirituelles', en: 'Spiritual Retreats' },
-  festivals: { fr: 'Festivals Conscients', en: 'Conscious Festivals' },
-  ceremonies: { fr: 'Cérémonies Sacrées', en: 'Sacred Ceremonies' },
-  portraits: { fr: 'Portraits Thérapeutiques', en: 'Therapeutic Portraits' },
+  souls: { fr: 'Âmes', en: 'Souls' },
+  events: { fr: 'Événements', en: 'Events' },
+  retreats: { fr: 'Retraites', en: 'Retreats' },
+  portraits: { fr: 'Âmes', en: 'Souls' },
+  festivals: { fr: 'Événements', en: 'Events' },
+  ceremonies: { fr: 'Retraites', en: 'Retreats' },
 };
 
 
@@ -113,16 +115,25 @@ export default function ProjectPage() {
   }, [lightboxIndex, imageCount]);
 
    if (loading) return <div className="min-h-screen bg-[#fcf7f3] flex items-center justify-center">Loading...</div>;
-  if (!project) return <div className="min-h-screen bg-[#fcf7f3] flex items-center justify-center">Projet non trouvé.</div>;
+  if (!project) {
+    return (
+      <div className="min-h-screen bg-[#fcf7f3] flex items-center justify-center">
+        {language === 'fr' ? 'Projet non trouvé.' : 'Project not found.'}
+      </div>
+    );
+  }
   return (
     <main className="min-h-screen bg-[#fcf7f3] relative">
-      {/* 1. SPLIT-SCREEN HERO : Image 50% / Texte 50% */}
-      <section className="w-full grid grid-cols-1 md:grid-cols-2 min-h-[70vh] md:min-h-[60vh]">
+      {/* 1. SPLIT-SCREEN HERO : Image 50% / Texte 50%
+           pt-14 / pt-16 : le header est en position fixed sur toutes les pages
+           publiques (Header.tsx). Sans cette reserve, il recouvrait le haut de
+           l'image et du bloc texte, qui commencent au bord de la page. */}
+      <section className="w-full grid grid-cols-1 md:grid-cols-2 min-h-[70vh] md:min-h-[60vh] pt-14 md:pt-16">
         {/* Colonne gauche : Image plein format */}
         <div className="relative w-full h-[50vh] md:h-full overflow-hidden bg-neutral-100">
           <img
             src={project.images[0] || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1000&q=80'}
-            alt={language === 'fr' ? project.title_fr : project.title_en}
+            alt={(language === 'fr' ? project.title_fr : project.title_en) || project.title_fr}
             className="w-full h-full object-cover"
           />
         </div>
@@ -133,10 +144,10 @@ export default function ProjectPage() {
             {CATEGORY_LABELS[project.category]?.[language === 'fr' ? 'fr' : 'en'] || project.category}
           </span>
           <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl text-neutral-900 mb-6 leading-tight">
-            {language === 'fr' ? project.title_fr : project.title_en}
+            {(language === 'fr' ? project.title_fr : project.title_en) || project.title_fr}
           </h1>
           <p className="font-sans text-sm md:text-base font-light text-neutral-600 leading-relaxed max-w-md">
-            {language === 'fr' ? project.description_fr : project.description_en}
+            {(language === 'fr' ? project.description_fr : project.description_en) || project.description_fr}
           </p>
         </div>
       </section>

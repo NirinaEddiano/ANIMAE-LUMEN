@@ -15,10 +15,10 @@ export async function POST(request: Request) {
     });
 
     const mailOptions = {
-      from: '"AnimaeLumen Contact" <anoeddi84@gmail.com>', // Libellé neutre d'envoi
+      from: '"ANIMAE LUMEN Contact" <anoeddi84@gmail.com>', // Libellé d'envoi fixe, identique dans toutes les langues
       to: 'animaelumen@outlook.com', // Destinataire final officiel
       replyTo: email, // Permet au destinataire de répondre directement à l'internaute
-      subject: `[AnimaeLumen] Nouveau message : ${subject}`,
+      subject: `[ANIMAE LUMEN] Nouveau message : ${subject}`,
       html: `
         <h3>Nouveau message de contact reçu</h3>
         <p><strong>Nom complet :</strong> ${firstName} ${lastName}</p>

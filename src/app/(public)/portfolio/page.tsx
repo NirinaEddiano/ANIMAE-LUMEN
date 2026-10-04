@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 
 import { supabase } from '@/lib/supabase';
-import InstagramSection from '@/components/InstagramSection';
+import { fontFamilyWithFallback, isHiddenKey, isUntranslated } from '@/lib/content';
 import { useState, useEffect } from 'react';
 
 // 1. Traductions de la section Hero du Portfolio
@@ -12,12 +12,12 @@ const portfolioHeroTranslations = {
   fr: {
     tagline: "Fragments d'éternité",
     heading: "Le Portfolio",
-    subheading: "Un recueil visuel de retraites spirituelles, cérémonies sacrées, festivals conscients et portraits thérapeutiques.",
+    subheading: "Un recueil visuel d'âmes, d'événements et de retraites.",
   },
   en: {
     tagline: "Fragments of eternity",
     heading: "The Portfolio",
-    subheading: "A visual testament to spiritual retreats, sacred ceremonies, conscious festivals, and therapeutic portraits.",
+    subheading: "A visual testament to souls, events and retreats.",
   }
 };
 
@@ -25,27 +25,32 @@ const portfolioHeroTranslations = {
 const filterTranslations = {
   fr: {
     all: "Tous",
-    retreats: "Retraites Spirituelles",
-    ceremonies: "Cérémonies Sacrées",
-    festivals: "Festivals Conscients",
-    portraits: "Portraits Thérapeutiques",
+    souls: "Âmes",
+    events: "Événements",
+    retreats: "Retraites",
     viewProject: "Découvrir la galerie →",
   },
   en: {
     all: "All",
-    retreats: "Spiritual Retreats",
-    ceremonies: "Sacred Ceremonies",
-    festivals: "Conscious Festivals",
-    portraits: "Therapeutic Portraits",
+    souls: "Souls",
+    events: "Events",
+    retreats: "Retreats",
     viewProject: "Explore the gallery →",
   }
+};
+
+// Catégories historiques regroupées dans les 3 services.
+const PORTFOLIO_CATEGORY_ALIASES: Record<string, string[]> = {
+  souls: ['souls', 'portraits'],
+  events: ['events', 'festivals'],
+  retreats: ['retreats', 'ceremonies'],
 };
 
 // Définition de la structure stricte d'un projet pour TypeScript
 interface Project {
   id: string;
   title: string;
-  category: 'retreats' | 'ceremonies' | 'festivals' | 'portraits';
+  category: 'souls' | 'events' | 'retreats';
   imageUrl: string;
 }
 
@@ -79,7 +84,7 @@ export default function PortfolioPage({
   dbContent?: any[];
 }) {
   const { language } = useLanguage();
-  const [filter, setFilter] = useState<'all' | 'retreats' | 'ceremonies' | 'festivals' | 'portraits'>('all');
+  const [filter, setFilter] = useState<'all' | 'souls' | 'events' | 'retreats'>('all');
 
     // --- NOUVEAU : Chargement dynamique des portfolios depuis Supabase ---
   const [portfolios, setPortfolios] = useState<any[]>([]);
@@ -107,16 +112,32 @@ export default function PortfolioPage({
 
   const activeContent = isEditing ? dbContent : localDbContent;
 
+  // Masquage choisis par l'administrateur : un bloc disparait du site
+  // public quand TOUS ses contenus sont masques. La condition 'every'
+  // evite de laisser un trou de mise en page si un seul element reste.
+  const hidden = (...keys: string[]) => keys.every((k) => isHiddenKey(activeContent, k));
+
   const getContent = (key: string, field: 'value_fr' | 'value_en', defaultValue: string) => {
     const item = activeContent.find((i: any) => i.key === key);
-    return item ? item[field] : defaultValue;
+    // EN identique au FR (traduction jamais faite) → repli anglais codé en dur.
+    // Côté FR, value_fr fait toujours foi.
+    if (!item || (field === 'value_en' && isUntranslated(item))) return defaultValue;
+    return ((item[field] as string) || '').trim() || defaultValue;
+  };
+
+  const getImage = (key: string, defaultValue: string) => {
+    const item = activeContent.find((i: { key: string }) => i.key === key) as
+      | { value_fr?: string; value_en?: string }
+      | undefined;
+    // Les URL d'images sont identiques dans les deux colonnes : on accepte les deux.
+    return item?.value_en || item?.value_fr || defaultValue;
   };
 
   const getInlineStyle = (key: string) => {
     const item = activeContent.find((i: any) => i.key === key);
     if (!item) return {};
     return {
-      fontFamily: item.font_family,
+      fontFamily: fontFamilyWithFallback(item.font_family),
       fontSize: item.font_size,
       fontWeight: item.is_bold ? 'bold' : 'light' as const,
     };
@@ -131,16 +152,17 @@ export default function PortfolioPage({
   const hero = portfolioHeroTranslations[language];
   const t = filterTranslations[language];
 
-// Filtrage des réalisations venant de Supabase (portfolios)
-const filteredProjects = filter === 'all' 
-  ? portfolios 
-  : portfolios.filter(project => project.category === filter);
+// Filtrage des réalisations venant de Supabase (portfolios).
+// Les catégories historiques sont regroupées dans les 3 services.
+const filteredProjects = filter === 'all'
+  ? portfolios
+  : portfolios.filter(project => PORTFOLIO_CATEGORY_ALIASES[filter]?.includes(project.category));
 
   return (
     <main className="min-h-screen bg-[#FAF9F6] pb-0 relative">
       
       {/* SECTION HERO */}
-      <section className="relative h-[50vh] md:h-[58vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white">
+      <section className={`relative h-[50vh] md:h-[58vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white ${hidden('portfolio_hero_image', 'portfolio_hero_tagline', 'portfolio_hero_heading', 'portfolio_hero_subheading') ? 'hidden' : ''}`}>
         
         {/* Image de fond cliquable et modifiable en direct par l'admin */}
         <div
@@ -155,7 +177,7 @@ const filteredProjects = filter === 'all'
             isEditing ? 'cursor-pointer hover:brightness-90' : ''
           } ${isEditing && selectedKey === 'portfolio_hero_image' ? 'ring-4 ring-white/40 ring-inset' : ''}`}
           style={{
-            backgroundImage: `url(${getContent('portfolio_hero_image', 'value_fr', 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1600&q=80')})`,
+            backgroundImage: `url(${getImage('portfolio_hero_image', 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1600&q=80')})`,
           }}
         />
 
@@ -215,17 +237,17 @@ const filteredProjects = filter === 'all'
       <section className="max-w-[85rem] mx-auto pt-12 md:pt-16 pb-12 md:pb-16 px-4 md:px-8">
         
         {/* Filtre Sticky — Mobile swipe / Desktop centré */}
-        <div className="sticky top-0 z-30 bg-[#FAF9F6]/95 backdrop-blur-md py-4 mb-8 flex overflow-x-auto whitespace-nowrap scrollbar-hide snap-x md:justify-center border-b border-neutral-200/50 px-4 md:px-0">
-          {(['all', 'retreats', 'ceremonies', 'festivals', 'portraits'] as const).map((cat) => {
+        <div className="sticky top-[52px] md:top-[60px] z-30 bg-[#FAF9F6]/95 backdrop-blur-md py-4 mb-8 flex overflow-x-auto whitespace-nowrap scrollbar-hide snap-x md:justify-center border-b border-neutral-200/50 px-4 md:px-0">
+          {(['all', 'souls', 'events', 'retreats'] as const).map((cat) => {
             const isActive = filter === cat;
             return (
               <button
                 key={cat}
                 onClick={() => setFilter(cat)}
-                className={`snap-start shrink-0 font-sans text-[10px] md:text-xs tracking-[0.2em] uppercase pb-1 transition-all duration-300 ease-in-out cursor-pointer mr-8 last:mr-0 ${
+                className={`snap-start shrink-0 font-sans text-[9px] md:text-[10px] tracking-[0.32em] uppercase font-light pb-1 transition-all duration-300 ease-in-out cursor-pointer mr-8 last:mr-0 ${
                   isActive
-                    ? 'text-neutral-900 font-semibold border-b border-neutral-900'
-                    : 'text-neutral-500 opacity-70 hover:opacity-100 hover:text-neutral-900'
+                    ? 'text-neutral-900 border-b border-neutral-900/60'
+                    : 'text-neutral-500 opacity-60 hover:opacity-100 hover:text-neutral-900'
                 }`}
               >
                 {t[cat]}
@@ -277,7 +299,7 @@ const filteredProjects = filter === 'all'
       </section>
 
 {/* SECTION : CALL TO ACTION (INVITATION SACRÉE DYNAMIQUE) */}
-<section className="relative h-[65vh] md:h-[75vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white">
+<section className={`relative h-[65vh] md:h-[75vh] w-full flex flex-col justify-center items-center px-6 overflow-hidden bg-neutral-950 text-white ${hidden('portfolio_cta_image', 'portfolio_cta_tagline', 'portfolio_cta_heading', 'portfolio_cta_description', 'portfolio_cta_button_text') ? 'hidden' : ''}`}>
   
   {/* Grande image panoramique spirituelle en arrière-plan (Cliquable et éditable) */}
   <div
@@ -292,7 +314,7 @@ const filteredProjects = filter === 'all'
       isEditing ? 'cursor-pointer hover:brightness-90' : ''
     } ${isEditing && selectedKey === 'portfolio_cta_image' ? 'ring-4 ring-white/40 ring-inset' : ''}`}
     style={{
-      backgroundImage: `url(${getContent('portfolio_cta_image', 'value_fr', 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80')})`,
+      backgroundImage: `url(${getImage('portfolio_cta_image', 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80')})`,
     }}
   />
 
@@ -369,15 +391,6 @@ const filteredProjects = filter === 'all'
 
 
 
-    {isEditing && (
-      <InstagramSection
-        dbContent={dbContent}
-        isEditing={isEditing}
-        onUpdateText={onUpdateText}
-        onSelectKey={onSelectKey}
-        selectedKey={selectedKey}
-      />
-    )}
     </main>
   );
 }

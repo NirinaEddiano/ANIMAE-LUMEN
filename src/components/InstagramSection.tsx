@@ -3,12 +3,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useLanguage } from '@/context/LanguageContext';
+import { isHiddenKey, isUntranslated } from '@/lib/content';
+import { SITE_BYLINE_DEFAULT, SITE_BYLINE_KEY, SITE_INSTAGRAM_DEFAULT } from '@/lib/navigation';
 
 const KEYS = [
   'insta_profile_img',
   'insta_username',
   'insta_bio',
-  'insta_btn_text'
+  'insta_btn_text',
+  SITE_BYLINE_KEY,
 ];
 
 const FALLBACKS: Record<string, { fr: string; en: string }> = {
@@ -16,12 +19,14 @@ const FALLBACKS: Record<string, { fr: string; en: string }> = {
     fr: 'https://images.pexels.com/photos/2173842/pexels-photo-2173842.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop',
     en: 'https://images.pexels.com/photos/2173842/pexels-photo-2173842.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop',
   },
-  insta_username: { fr: '@animaelumen', en: '@animaelumen' },
+  insta_username: { fr: SITE_INSTAGRAM_DEFAULT, en: SITE_INSTAGRAM_DEFAULT },
   insta_bio: {
     fr: 'Témoigner du sacré dans la présence humaine 𓆃\nRetraites, Cérémonies et Portraits',
     en: 'Witnessing the sacred in human presence 𓆃\nRetreats, Ceremonies and Portraits',
   },
   insta_btn_text: { fr: 'S\'abonner', en: 'Follow' },
+  // La signature est identique dans les deux langues, c'est voulu.
+  [SITE_BYLINE_KEY]: { fr: SITE_BYLINE_DEFAULT, en: SITE_BYLINE_DEFAULT },
 };
 
 const autoTranslate = async (text: string): Promise<string> => {
@@ -45,6 +50,7 @@ export default function InstagramSection({
   selectedKey = null,
   backgroundColor,
   className,
+  compact = false,
 }: {
   dbContent?: any[];
   isEditing?: boolean;
@@ -53,6 +59,9 @@ export default function InstagramSection({
   selectedKey?: string | null;
   backgroundColor?: string;
   className?: string;
+  // Version discrete : avatar, pseudo et bouton reduits. Utilisee dans le
+  // pied de page, ou le bloc doit rester tres efface.
+  compact?: boolean;
 }) {
   const { language } = useLanguage();
   const [loading, setLoading] = useState(!isEditing);
@@ -71,13 +80,26 @@ export default function InstagramSection({
     fetchData();
   }, [isEditing]);
 
-  const resolve = (key: string): string => {
-    const fromDb = [...dbContent, ...fetched].find((c: any) => c.key === key);
-    if (fromDb) {
-      const val = language === 'fr' ? fromDb.value_fr : fromDb.value_en;
+  const findRow = (key: string) => [...dbContent, ...fetched].find((c: any) => c.key === key);
+
+  /** Texte : si value_en n'est qu'une copie du français, la traduction n'a jamais
+   *  eu lieu → on retombe sur le repli localisé. */
+  const resolveText = (key: string): string => {
+    const fromDb = findRow(key);
+    if (fromDb && !(language === 'en' && isUntranslated(fromDb))) {
+      const val = ((language === 'fr' ? fromDb.value_fr : fromDb.value_en) || '').trim();
       if (val) return val;
     }
     return FALLBACKS[key]?.[language] || FALLBACKS[key]?.fr || '';
+  };
+
+  /** Image : JAMAIS de contrôle isUntranslated. Pour une image, value_en et
+   *  value_fr sont légitimement identiques (même URL) — les traiter comme
+   *  « non traduites » faisait disparaître la photo en anglais. */
+  const resolveImage = (key: string): string => {
+    const fromDb = findRow(key);
+    const val = ((fromDb?.value_en as string) || (fromDb?.value_fr as string) || '').trim();
+    return val || FALLBACKS[key]?.[language] || FALLBACKS[key]?.fr || '';
   };
 
   const handleBlur = async (key: string, e: React.FocusEvent<HTMLElement>) => {
@@ -131,9 +153,10 @@ export default function InstagramSection({
     );
   }
 
-  const profileImg = resolve('insta_profile_img');
-  const username = resolve('insta_username');
-  const btnText = resolve('insta_btn_text');
+  const profileImg = resolveImage('insta_profile_img');
+  const username = SITE_INSTAGRAM_DEFAULT;
+  const btnText = resolveText('insta_btn_text');
+  const byline = resolveText(SITE_BYLINE_KEY);
 
   return (
     <section 
@@ -144,7 +167,9 @@ export default function InstagramSection({
         backgroundRepeat: 'repeat', // Évite l'étirement flou
         backgroundSize: '180px 180px', // Maintient le grain très fin et précis
       }}
-      className={`relative w-full py-16 md:py-24 overflow-hidden ${className ?? ''}`}
+      className={`relative w-full py-16 md:py-24 overflow-hidden ${className ?? ''} ${
+        KEYS.every((k) => isHiddenKey([...dbContent, ...fetched], k)) ? 'hidden' : ''
+      }`}
     >
       <input
         type="file"
@@ -158,7 +183,7 @@ export default function InstagramSection({
         
         {/* Avatar */}
         <div
-          className={`group w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden shadow-sm ring-2 ring-neutral-200 flex-shrink-0 relative ${
+          className={`group ${compact ? 'w-14 h-14 md:w-16 md:h-16' : 'w-20 h-20 md:w-24 md:h-24'} rounded-full overflow-hidden shadow-sm ring-2 ring-neutral-200 flex-shrink-0 relative ${
             isEditing ? 'cursor-pointer hover:ring-sage/60' : ''
           }`}
           onClick={() => {
@@ -182,18 +207,30 @@ export default function InstagramSection({
           )}
         </div>
 
-        {/* Nom d'utilisateur */}
-        <div className="mt-1">
+        {/* Nom d'utilisateur + signature de l'artiste. Le nom Instagram n'est pas
+            modifie : seule la signature s'ajoute a sa droite, plus petite. */}
+        <div className="mt-1 flex flex-wrap items-baseline justify-center gap-x-2.5 gap-y-0.5">
           <span
-            contentEditable={isEditing}
+            contentEditable={false}
             suppressContentEditableWarning={true}
             onBlur={(e) => handleBlur('insta_username', e)}
-            onClick={() => isEditing && onSelectKey('insta_username')}
-            className={`font-sans text-base md:text-lg font-semibold text-neutral-900 outline-none rounded-xs whitespace-pre-wrap ${
+            className={`font-sans ${compact ? 'text-sm md:text-[15px] font-medium text-neutral-900/75' : 'text-base md:text-lg font-semibold text-neutral-900'} outline-none rounded-xs whitespace-pre-wrap ${
               isEditing ? 'hover:ring-1 hover:ring-sage/40 cursor-text' : ''
             } ${isEditing && selectedKey === 'insta_username' ? 'ring-1 ring-sage/40 bg-neutral-50' : ''}`}
           >
             {username}
+          </span>
+
+          <span
+            contentEditable={isEditing}
+            suppressContentEditableWarning
+            onBlur={(e) => handleBlur(SITE_BYLINE_KEY, e)}
+            onClick={() => isEditing && onSelectKey(SITE_BYLINE_KEY)}
+            className={`site-byline text-[11px] md:text-xs text-neutral-900/55 whitespace-nowrap outline-none ${
+              isEditing ? 'cursor-text' : ''
+            } ${isEditing && selectedKey === SITE_BYLINE_KEY ? 'ring-1 ring-sage/40 bg-neutral-50' : ''}`}
+          >
+            {byline}
           </span>
         </div>
 
@@ -215,7 +252,9 @@ export default function InstagramSection({
               suppressContentEditableWarning={true}
               onBlur={(e) => handleBlur('insta_btn_text', e)}
               onClick={() => isEditing && onSelectKey('insta_btn_text')}
-              className={`inline-block font-sans text-xs md:text-sm uppercase tracking-wider text-white bg-[#2C2C2C] border border-[#2C2C2C] px-8 py-2.5 rounded-none hover:bg-transparent hover:text-charcoal transition-all duration-300 outline-none whitespace-pre-wrap ${
+              className={`inline-block font-sans uppercase tracking-wider text-white bg-[#2C2C2C] border border-[#2C2C2C] rounded-none hover:bg-transparent hover:text-charcoal transition-all duration-300 outline-none whitespace-pre-wrap ${
+                compact ? 'text-[10px] md:text-[11px] px-6 py-2.5' : 'text-[13px] md:text-[15px] px-8 py-2.5'
+              } ${
                 isEditing ? 'cursor-text' : ''
               } ${isEditing && selectedKey === 'insta_btn_text' ? 'ring-2 ring-sage/60' : ''}`}
             >

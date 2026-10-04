@@ -2,10 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { clearSiteContentCache } from '@/lib/useSiteContent';
 import HomePage from '../(public)/page'; // Importation directe de votre VRAIE page d'accueil d'origine !
 import AboutPage from '../(public)/about/page'; // Importation directe de votre vraie page À Propos !
 import ContactPage from '../(public)/contact/page'; // Importation directe de votre vraie page de Contact !
 import PortfolioPage from '../(public)/portfolio/page'; // Importation directe de votre vraie page de Portfolio !
+import Header from '@/components/Header';
+import Footer from '@/components/Footer'; // Importation directe du vrai pied de page du site
+import ServiceCategoryPage from '../(public)/services/[slug]/page'; // Les 3 pages service, éditables ici !
+import { useLanguage } from '@/context/LanguageContext';
+import { fieldFor, fontFamilyWithFallback, isImageKey } from '@/lib/content';
+import { FIXED_BRAND_CONTENT_KEYS, FIXED_BRAND_VALUES } from '@/lib/navigation';
 
 interface ContentItem {
   key: string;
@@ -13,10 +20,11 @@ interface ContentItem {
   value_en: string;
   font_family: string;
   font_size: string;
-  is_bold: boolean;
+is_bold: boolean;
   is_stamped: boolean;
   is_image: boolean;
-}
+  is_hidden?: boolean;
+  }
 
 const GOOGLE_FONTS = [
   "Minionpro",
@@ -33,6 +41,10 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // L'édition en direct suit la langue affichée : on écrit dans la colonne correspondante.
+  const { language } = useLanguage();
+  const [manualFrKeys, setManualFrKeys] = useState<string[]>([]);
+
   const [searchQuery, setSearchQuery] = useState('');
 const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
 
@@ -47,9 +59,11 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // État de l'onglet de page actif dans l'administration ('home', 'about' ou 'contact')
-  // Onglet actif ('home', 'about', 'contact' ou 'portfolio')
-  const [activeTab, setActiveTab] = useState<'home' | 'about' | 'contact' | 'portfolio'>('home');
+  // État de l'onglet de page actif dans l'administration ('header', 'home', 'about' ou 'contact')
+  // Onglet actif ('header', 'home', 'about', 'contact' ou 'portfolio')
+  const [activeTab, setActiveTab] = useState<'header' | 'home' | 'services' | 'about' | 'contact' | 'portfolio' | 'footer'>('home');
+  const [serviceSlug, setServiceSlug] = useState<'souls' | 'events' | 'retreats'>('souls');
+  const [isDraggingImages, setIsDraggingImages] = useState(false);
   // État de sous-navigation pour le Portfolio ('page' pour éditer l'en-tête réel, 'list' pour créer/gérer des projets)
   const [portfolioSubTab, setPortfolioSubTab] = useState<'page' | 'list'>('list');
 
@@ -63,8 +77,8 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [newImageUrl, setNewImageUrl] = useState('');
   const [editingPortfolio, setEditingPortfolio] = useState<any>({
     id: null,
-    title_fr: '',
-    description_fr: '',
+    title_en: '',
+    description_en: '',
     category: 'retreats',
     images: []
   });
@@ -135,15 +149,15 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const handleSavePortfolio = async () => {
     setSaving(true);
     try {
-      // 1. Traduction automatique gratuite (FR -> EN) avant l'envoi (Utilisation de autoTranslate)
-      const titleEn = await autoTranslate(editingPortfolio.title_fr);
-      const descEn = await autoTranslate(editingPortfolio.description_fr);
+      // 1. L'anglais est saisi, le français est généré automatiquement
+      const titleFr = await autoTranslate(editingPortfolio.title_en);
+      const descFr = await autoTranslate(editingPortfolio.description_en);
 
       const portfolioData = {
-        title_fr: editingPortfolio.title_fr,
-        title_en: titleEn,
-        description_fr: editingPortfolio.description_fr,
-        description_en: descEn,
+        title_en: editingPortfolio.title_en,
+        title_fr: titleFr ?? editingPortfolio.title_en,
+        description_en: editingPortfolio.description_en,
+        description_fr: descFr ?? editingPortfolio.description_en,
         category: editingPortfolio.category,
         images: editingPortfolio.images
       };
@@ -185,13 +199,13 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
     }
   };
 
-  // Envoi de PLUSIEURS photos locales en parallèle vers Supabase Storage
-  const handlePortfolioMultiImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  // Envoi d'une liste de Fichiers (ou de DataTransfer) vers Supabase Storage
+  const uploadPortfolioFiles = async (fileList: FileList | File[]) => {
+    const files = Array.from(fileList).filter((f) => f.type.startsWith('image/'));
+    if (files.length === 0) return;
 
     setSaving(true);
-    const uploadPromises = Array.from(files).map(async (file) => {
+    const uploadPromises = files.map(async (file) => {
       const fileExt = file.name.split('.').pop();
       const fileName = `portfolio-img-${Math.random()}.${fileExt}`;
       const filePath = `portfolios/${fileName}`;
@@ -217,6 +231,14 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
       images: [...prev.images, ...validUrls]
     }));
     setSaving(false);
+  };
+
+  // Envoi de PLUSIEURS photos locales en parallèle vers Supabase Storage
+  const handlePortfolioMultiImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    await uploadPortfolioFiles(e.target.files);
+    // Permet de renvoyer deux fois le même fichier dans la même session.
+    e.target.value = '';
   };
 
   const triggerDeleteConfirmation = (id: string) => {
@@ -255,60 +277,157 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
     setSelectedKey(null);
   };
 
-  // API de Traduction Automatique (FR -> EN) - Version corrigée pour les longs paragraphes
-  const autoTranslate = async (text: string): Promise<string> => {
-    try {
-      const response = await fetch(
-        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=fr&tl=en&dt=t&q=${encodeURIComponent(text)}`
-      );
-      const data = await response.json();
-      
-      // Correction : On rassemble toutes les phrases du tableau de traduction
-      if (data && data[0]) {
-        return data[0].map((slice: any) => slice[0]).join('');
+  // API de Traduction Automatique (EN -> FR).
+  // L'anglais est la langue source du site : le français est généré automatiquement.
+  // Si l'API échoue (rate-limit, réseau), on renvoie null pour NE PAS écraser
+  // la traduction existante avec le texte source — c'est ce qui figeait le site en français.
+  const translate = async (text: string, to: 'fr' | 'en'): Promise<string | null> => {
+    const clean = text.trim();
+    if (!clean) return '';
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await fetch(
+          `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${to === 'fr' ? 'en' : 'fr'}&tl=${to}&dt=t&q=${encodeURIComponent(clean)}`
+        );
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (data && Array.isArray(data[0])) {
+          const joined = data[0].map((slice: any) => slice[0]).join('').trim();
+          if (joined) return joined;
+        }
+      } catch (error) {
+        console.error("Erreur de traduction :", error);
+        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
       }
-      
-      return text;
-    } catch (error) {
-      console.error("Erreur de traduction :", error);
-      return text;
     }
+    return null;
   };
+
+  const autoTranslate = (text: string) => translate(text, 'fr');
 
   const handleSaveChanges = async () => {
     setSaving(true);
     setSaveSuccess(false);
 
+    // On relit l'etat actuellement en base pour savoir si le francais est
+    // une vraie redaction humaine ou une simple copie de l'anglais.
+    const { data: stored } = await supabase.from('site_content').select('key,value_en,value_fr');
+    const storedMap = new Map(
+      ((stored || []) as { key: string; value_en: string; value_fr: string }[]).map((r) => [r.key, r])
+    );
+
+    let failed = 0;
+    let lastError = '';
+
     for (const item of contentList) {
-      let finalEnValue = item.value_en;
-      if (!item.is_image) {
-        finalEnValue = await autoTranslate(item.value_fr);
+      let finalFrValue = item.value_fr;
+      const before = storedMap.get(item.key);
+      const frWasOnlyACopyOfEn =
+        !before || (!before.value_fr && !before.value_en) ||
+        (!!before.value_fr && before.value_fr === before.value_en);
+
+      // On ne regenere le francais que s'il est vide, copie sale, ou saisie
+      // manuellement dans cette session. Jamais on n'ecrase une redaction.
+      const shouldTranslate =
+        !item.is_image &&
+        !FIXED_BRAND_CONTENT_KEYS.includes(item.key as (typeof FIXED_BRAND_CONTENT_KEYS)[number]) &&
+        item.value_en &&
+        !manualFrKeys.includes(item.key) &&
+        (!item.value_fr || !item.value_fr.trim() || frWasOnlyACopyOfEn);
+
+      if (shouldTranslate) {
+        const translated = await autoTranslate(item.value_en);
+        if (translated !== null) finalFrValue = translated;
       }
 
-      // Utilise .upsert() pour créer automatiquement l'élément en base de données s'il n'existait pas encore !
-      await supabase
+      // L'erreur d'ecriture est recuperee et comptee : sans cela un echec
+      // RLS ou reseau passait inaperçu et l'admin annonçait "sauvegardé".
+      const fixedBrandValue = FIXED_BRAND_VALUES[item.key as keyof typeof FIXED_BRAND_VALUES];
+      const { error: writeError } = await supabase
         .from('site_content')
         .upsert({
-          key: item.key, // Indispensable pour l'upsert
-          value_fr: item.value_fr,
-          value_en: finalEnValue,
+          key: item.key,
+          value_en: fixedBrandValue ?? item.value_en,
+          value_fr: fixedBrandValue ?? finalFrValue,
           font_family: item.font_family,
           font_size: item.font_size,
           is_bold: item.is_bold,
           is_stamped: item.is_stamped,
-          is_image: item.is_image
+          is_image: item.is_image,
+          is_hidden: item.is_hidden === true
         });
+
+      if (writeError) {
+        failed += 1;
+        lastError = writeError.message;
+      }
     }
 
     await fetchContent();
+    clearSiteContentCache();
+    setManualFrKeys([]);
     setSaving(false);
-    setSaveSuccess(true);
+
+    if (failed > 0) {
+      setSaveSuccess(false);
+      alert(
+        `${failed} contenu(s) n'ont pas pu être enregistrés.\n\nDernière erreur : ${lastError}\n\n` +
+        `Vos autres modifications ont bien été enregistrées.`
+      );
+    } else {
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    }
+  };
+
+  // Regenere l'anglais a partir du francais pour les lignes non traduites.
+  // C'est l'outil a utiliser une seule fois pour repasser le site en anglais.
+  const handleRepairEnglish = async () => {
+    setSaving(true);
+    setSaveSuccess(false);
+    const broken = contentList.filter(
+      (item) => !item.is_image && item.value_fr && item.value_fr.trim()
+        && !FIXED_BRAND_CONTENT_KEYS.includes(item.key as (typeof FIXED_BRAND_CONTENT_KEYS)[number])
+        && (!item.value_en || !item.value_en.trim() || item.value_en === item.value_fr)
+    );
+
+    if (broken.length === 0) {
+      setSaving(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+      return;
+    }
+
+    let done = 0;
+    for (const item of broken) {
+      // sl=fr / tl=en : on part bien du FRANÇAIS pour produire l'anglais.
+      const translated = await translate(item.value_fr, 'en');
+      if (translated) {
+        const { error } = await supabase
+          .from('site_content')
+          .update({ value_en: translated })
+          .eq('key', item.key);
+        if (!error) done++;
+      }
+    }
+
+    await fetchContent();
+    clearSiteContentCache();
+    setSaving(false);
+    setSaveSuccess(done > 0);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
 
   const handleLocalImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, key: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Permet de rechoisir exactement le meme fichier deux fois de suite.
+    e.target.value = '';
+
+    if (!key) {
+      alert("Aucune clé sélectionnée : cliquez d'abord sur l'image à remplacer dans la page.");
+      return;
+    }
 
     setSaving(true);
     const fileExt = file.name.split('.').pop();
@@ -320,21 +439,46 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
       .upload(filePath, file);
 
     if (uploadError) {
-      alert("Erreur : " + uploadError.message);
+      alert("Erreur d'envoi du fichier : " + uploadError.message);
       setSaving(false);
       return;
     }
 
     const { data } = supabase.storage.from('site-media').getPublicUrl(filePath);
-    if (data) {
-      updateField(key, 'value_fr', data.publicUrl);
-      updateField(key, 'value_en', data.publicUrl);
+    const publicUrl = data?.publicUrl;
+
+    if (!publicUrl) {
+      alert("Erreur : l'adresse du fichier n'a pas pu être générée.");
+      setSaving(false);
+      return;
     }
+
+    // L'image est ecrite immediatement en base. L'utilisateur n'a pas a
+    // penser a cliquer sur "Sauvegarder le site" pour que la photo change
+    // reellement sur le site public.
+    const { error: dbError } = await supabase
+      .from('site_content')
+      .update({ value_fr: publicUrl, value_en: publicUrl })
+      .eq('key', key);
+
+    if (dbError) {
+      alert("Photo envoyée, mais l'enregistrement a échoué : " + dbError.message);
+    } else {
+      clearSiteContentCache();
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    }
+
+    // L'etat local est mis a jour dans tous les cas pour que l'apercu
+    // affiche bien la nouvelle image.
+    updateField(key, 'value_fr', publicUrl);
+    updateField(key, 'value_en', publicUrl);
     setSaving(false);
   };
 
   // Fonction de mise à jour intelligente Odoo : met à jour le champ ou le crée s'il n'existe pas encore
   const updateField = (key: string, field: keyof ContentItem, value: any) => {
+    if (FIXED_BRAND_CONTENT_KEYS.includes(key as (typeof FIXED_BRAND_CONTENT_KEYS)[number])) return;
     setContentList(prev => {
       const exists = prev.some(item => item.key === key);
       if (exists) {
@@ -350,7 +494,8 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
           font_size: '16px',
           is_bold: false,
           is_stamped: false,
-          is_image: key.includes('image')
+          is_image: isImageKey(key),
+          is_hidden: false
         };
         return [...prev, newItem];
       }
@@ -359,105 +504,83 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
 
   // Si l'élément cliqué n'est pas encore en base de données, on génère un profil temporaire pour pouvoir l'éditer et le créer à la volée !
   // --- NOUVEAU : Résolveur d'images d'origine pour éviter tout décalage à droite ---
-  const getDefaultImage = (key: string): string => {
-    if (key === 'portfolio_cta_image') return 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80';
-  // AJOUTER CETTE LIGNE :
-  if (key === 'portfolio_hero_image') return 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1600&q=80';
-  
-  if (key === 'contact_hero_image') return 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80';
-  // ... reste de votre code inchangé ...
-  // AJOUTER CES DEUX LIGNES :
-  if (key === 'contact_image_1') return 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=600&q=80';
-  if (key === 'contact_image_2') return 'https://images.unsplash.com/photo-1528319725582-ddc096101511?auto=format&fit=crop&w=600&q=80';
-  
-  if (key === 'contact_hero_image') return 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80';
-  // ... reste de votre code inchangé ...
-  // AJOUTER CETTE LIGNE :
-  if (key === 'contact_hero_image') return 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80';
-  
-  if (key === 'about_hero_image') return 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1600&q=80';
-  // ... reste de votre code inchangé ...
-  // AJOUTER CETTE LIGNE :
-  if (key === 'about_cta_bg_image') return 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80';
-  
-  // AJOUTER CE BLOC :
-  if (key.startsWith('signature_image_')) {
-    const index = parseInt(key.replace('signature_image_', ''), 10);
-    const signatureFallbacks = [
+  // Photos par défaut affichées dans l'aperçu avant le premier upload.
+  // Ne sert qu'à l'affichage : la valeur réelle vit en base.
+  const DEFAULT_IMAGES: Record<string, string> = {
+    home_hero_image: 'https://images.pexels.com/photos/13030798/pexels-photo-13030798.jpeg',
+    portfolio_hero_image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1600&q=80',
+    portfolio_cta_image: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80',
+    contact_hero_image: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80',
+    contact_image_1: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=600&q=80',
+    contact_image_2: 'https://images.unsplash.com/photo-1528319725582-ddc096101511?auto=format&fit=crop&w=600&q=80',
+    about_hero_image: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1600&q=80',
+    about_cta_bg_image: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1600&q=80',
+    experience_image_1: 'https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?auto=format&fit=crop&w=800&q=80',
+    experience_image_2: 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=600&q=80',
+    vision_image_1: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=80',
+    vision_image_2: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=80',
+    // Hero de chaque service
+    hero_souls_bg: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1600&q=80',
+    hero_events_bg: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1600&q=80',
+    hero_retreats_bg: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1600&q=80',
+  };
+
+  // Galeries indexées : la clé est le suffixe numérique après le nom.
+  const INDEXED_IMAGES: Record<string, string[]> = {
+    signature_image: [
       'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80',
       'https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?auto=format&fit=crop&w=600&q=80',
-      'https://images.unsplash.com/photo-1528319725582-ddc096101511?auto=format&fit=crop&w=600&q=80'
-    ];
-    return signatureFallbacks[index] || "";
-  }
-  
-  if (key === 'experience_image_1') return 'https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?auto=format&fit=crop&w=800&q=80';
-  // ... reste de votre code inchangé ...
-  // AJOUTER CES DEUX LIGNES :
-  if (key === 'experience_image_1') return 'https://images.unsplash.com/photo-1500485035595-cbe6f645feb1?auto=format&fit=crop&w=800&q=80';
-  if (key === 'experience_image_2') return 'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=600&q=80';
-  
-  if (key === 'about_hero_image') return 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1600&q=80';
-  // ... reste de votre code inchangé ...
-    // Détecte s'il s'agit du collage à 7 photos d'À Propos
-    if (key.startsWith('about_image_')) {
-      const index = parseInt(key.replace('about_image_', ''), 10);
-      const aboutFallbacks = [
-        'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80'
-      ];
-      return aboutFallbacks[index] || "";
-    }
-    if (key === 'about_hero_image') return 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1600&q=80';
-  
-  if (key === 'vision_image_1') return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=80';
-    if (key === 'vision_image_1') return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=80';
-    if (key === 'vision_image_2') return 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=80';
-    
-    // Détecte s'il s'agit des cartes du bas (Spécialités)
-    if (key.startsWith('grid_image_')) {
-      const index = parseInt(key.replace('grid_image_', ''), 10);
-      const gridFallbacks = [
-        "https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=1000&q=80",
-        "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1000&q=80",
-        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1000&q=80",
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1000&q=80"
-      ];
-      return gridFallbacks[index] || "";
-    }
-    
-    // Détecte s'il s'agit du diaporama principal
-    if (key.startsWith('service_image_')) {
-      const index = parseInt(key.replace('service_image_', ''), 10);
-      const heroFallbacks = [
-        'https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=1600&q=80',
-        'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80',
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1600&q=80',
-        'https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&w=1600&q=80'
-      ];
-      return heroFallbacks[index] || "";
-    }
+      'https://images.unsplash.com/photo-1528319725582-ddc096101511?auto=format&fit=crop&w=600&q=80',
+    ],
+    about_image: [
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+    ],
+    grid_image: [
+      'https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1000&q=80',
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=1000&q=80',
+    ],
+    service_image: [
+      'https://images.unsplash.com/photo-1545205597-3d9d02c29597?auto=format&fit=crop&w=1600&q=80',
+      'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1600&q=80',
+    ],
+  };
 
-    return "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=80";
+  const getDefaultImage = (key: string): string => {
+    if (DEFAULT_IMAGES[key]) return DEFAULT_IMAGES[key];
+    for (const [name, list] of Object.entries(INDEXED_IMAGES)) {
+      if (key.startsWith(`${name}_`)) {
+        const index = parseInt(key.slice(name.length + 1), 10);
+        if (!Number.isNaN(index) && list[index]) return list[index];
+      }
+    }
+    return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=80';
   };
 
   // Fallback d'Odoo : Associe dynamiquement la vraie photo d'origine en cas de première édition !
-  // Fallback d'Odoo : Associe dynamiquement la vraie photo d'origine en cas de première édition !
   const activeItem = contentList.find(item => item.key === selectedKey) || (selectedKey ? {
     key: selectedKey,
-    value_fr: selectedKey.includes('image') ? getDefaultImage(selectedKey) : "Nouveau texte",
-    value_en: selectedKey.includes('image') ? getDefaultImage(selectedKey) : "New text",
+    value_fr: isImageKey(selectedKey) ? getDefaultImage(selectedKey) : "Nouveau texte",
+    value_en: isImageKey(selectedKey) ? getDefaultImage(selectedKey) : "New text",
     font_family: "Minionpro",
     font_size: "16px",
-    is_bold: false,
-    is_stamped: false,
-    is_image: selectedKey.includes('image')
-  } : null);
+is_bold: false,
+  is_stamped: false,
+  is_image: isImageKey(selectedKey),
+  is_hidden: false
+} : null);
+
+  // Contenus masques : ils ne sont plus cliquables sur la page puisque la
+  // section a disparu. Cette liste est le seul moyen de les reafficher.
+  const hiddenItems = contentList.filter((item) => item.is_hidden === true);
 
   if (loading) {
     return (
@@ -473,19 +596,26 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
       <div className="min-h-screen bg-[#FAF9F6] text-neutral-950 flex flex-col relative pb-12 overflow-hidden">
         
         {/* Barre d'administration haute ultra-fine */}
-        <div className="fixed top-0 left-0 w-full bg-white/95 border-b border-neutral-200 py-3 px-6 z-50 flex items-center justify-between shadow-xs">
+        <div className="fixed top-0 left-0 w-full bg-white/95 border-b border-neutral-200 py-3 px-6 z-50 grid grid-cols-[1fr_auto_1fr] items-center gap-4 shadow-xs">
           
           {/* Logo gauche */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 justify-self-start">
             <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" />
             <h1 className="font-serif text-xs tracking-widest text-neutral-900 uppercase">
               ANIMAE LUMEN
             </h1>
           </div>
 
-          {/* MENU DE NAVIGATION DE L'ÉDITEUR (Au Centre) */}
-          {/* MENU DE NAVIGATION DE L'ÉDITEUR (Au Centre) */}
-          <div className="flex items-center space-x-8">
+          {/* MENU DE NAVIGATION DE L'ÉDITEUR (Vraiment centré : colonnes latérales de largeur égale) */}
+          <div className="flex items-center gap-6 lg:gap-8 justify-self-center">
+            <button
+              onClick={() => { setActiveTab('header'); setSelectedKey(null); }}
+              className={`font-sans text-[10px] tracking-[0.25em] uppercase pb-1 transition-all cursor-pointer ${
+                activeTab === 'header' ? 'text-neutral-950 border-b border-neutral-950 font-semibold' : 'text-neutral-400 hover:text-neutral-950'
+              }`}
+            >
+              En-tête
+            </button>
             <button
               onClick={() => { setActiveTab('home'); setSelectedKey(null); }}
               className={`font-sans text-[10px] tracking-[0.25em] uppercase pb-1 transition-all cursor-pointer ${
@@ -501,6 +631,14 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
               }`}
             >
               À Propos
+            </button>
+            <button
+              onClick={() => { setActiveTab('services'); setSelectedKey(null); }}
+              className={`font-sans text-[10px] tracking-[0.25em] uppercase pb-1 transition-all cursor-pointer ${
+                activeTab === 'services' ? 'text-neutral-950 border-b border-neutral-950 font-semibold' : 'text-neutral-400 hover:text-neutral-950'
+              }`}
+            >
+              Services
             </button>
             
             {/* Bouton Contact désormais actif */}
@@ -522,10 +660,19 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
             >
               Portfolio
             </button>
+
+            <button
+              onClick={() => setActiveTab('footer')}
+              className={`font-sans text-[10px] tracking-[0.25em] uppercase pb-1 transition-all cursor-pointer ${
+                activeTab === 'footer' ? 'text-neutral-950 border-b border-neutral-950 font-semibold' : 'text-neutral-400 hover:text-neutral-950'
+              }`}
+            >
+              Pied de page
+            </button>
           </div>
 
           {/* Bouton déconnexion droit */}
-          <button onClick={handleLogout} className="text-[10px] uppercase tracking-[0.2em] font-light text-red-800 hover:opacity-80 transition-opacity cursor-pointer">
+          <button onClick={handleLogout} className="text-[10px] uppercase tracking-[0.2em] font-light text-red-800 hover:opacity-80 transition-opacity cursor-pointer justify-self-end">
             Quitter l'éditeur
           </button>
         </div>
@@ -539,23 +686,93 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
             <div className="bg-[#FAF9F6]">
               
               {/* INPUT INVISIBLE POUR L'UPLOAD PHOTO LOCAL */}
-              <input type="file" ref={fileInputRef} onChange={(e) => handleLocalImageUpload(e, selectedKey || '')} className="hidden" accept="image/*" />
+              <input type="file" ref={fileInputRef} data-site-upload="content" onChange={(e) => handleLocalImageUpload(e, selectedKey || '')} className="hidden" accept="image/*" />
 
-             {/* RENDER CONDITIONNEL DE LA PAGE ACTIVE (Accueil, À Propos, Contact ou Portfolios) */}
-              {activeTab === 'home' ? (
+             {/* RENDER CONDITIONNEL DE LA PAGE ACTIVE (En-tête, Accueil, À Propos, Contact ou Portfolios) */}
+              {activeTab === 'footer' ? (
+                /* --- ESPACE PIED DE PAGE : edition du vrai pied de page du site, avec la
+                       section Instagram a sa vraie place (a cote du contenu) --- */
+                <div className="bg-[#fcf7f3] p-8 space-y-8">
+                  <div className="border border-neutral-200">
+                    <Footer
+                      isEditing={true}
+                      selectedKey={selectedKey}
+                      onSelectKey={setSelectedKey}
+                      onUpdateText={(key, val) => updateField(key, fieldFor(language), val)}
+                      dbContent={contentList}
+                    />
+                  </div>
+                </div>
+              ) : activeTab === 'header' ? (
+                /* --- ESPACE EN-TÊTE : édition directe du vrai Header du site --- */
+                <div className="bg-[#fcf7f3] p-8 space-y-8">
+                  <div className="border border-neutral-200 bg-white">
+                    <Header
+                      isEditing={true}
+                      preview={true}
+                      selectedKey={selectedKey}
+                      onSelectKey={setSelectedKey}
+                      onUpdateText={(key, val) => updateField(key, fieldFor(language), val)}
+                      dbContent={contentList}
+                    />
+                  </div>
+                  <p className="font-sans text-[11px] font-light text-neutral-400 leading-relaxed max-w-2xl">
+                    Cliquez sur le logo ou sur un intitulé du menu central pour le modifier. L'anglais est la langue source : le français est généré automatiquement à la sauvegarde. Le sélecteur EN / FR et le burger mobile ne sont pas traduisibles.
+                  </p>
+                </div>
+              ) : activeTab === 'home' ? (
                 <HomePage 
                   isEditing={true}
                   selectedKey={selectedKey}
                   onSelectKey={setSelectedKey}
-                  onUpdateText={(key, val) => updateField(key, 'value_fr', val)}
+                  onUpdateText={(key, val) => updateField(key, fieldFor(language), val)}
                   dbContent={contentList}
                 />
+              ) : activeTab === 'services' ? (
+                /* ÉDITION DES 3 SERVICES : hero et textes de chacun */
+                <div className="space-y-6">
+                  <div className="flex items-center justify-center gap-6 flex-wrap">
+                    <span className="font-sans text-[10px] tracking-[0.25em] uppercase font-semibold text-neutral-500">Service</span>
+                    {([
+                      ['souls', 'Souls — Âmes'],
+                      ['events', 'Events — Événements'],
+                      ['retreats', 'Retreats — Retraites'],
+                    ] as const).map(([slug, label]) => (
+                      <button
+                        key={slug}
+                        onClick={() => { setServiceSlug(slug); setSelectedKey(null); }}
+                        className={`font-sans text-[10px] tracking-[0.2em] uppercase pb-1 transition-all cursor-pointer ${
+                          serviceSlug === slug ? 'text-neutral-950 border-b border-neutral-950 font-semibold' : 'text-neutral-400 hover:text-neutral-950'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="bg-[#FAF9F6] border border-neutral-200">
+                    <ServiceCategoryPage
+                      forcedSlug={serviceSlug}
+                      isEditing={true}
+                      selectedKey={selectedKey}
+                      onSelectKey={setSelectedKey}
+                      onUpdateText={(key, val) => updateField(key, fieldFor(language), val)}
+                      dbContent={contentList}
+                    />
+                  </div>
+
+                  <p className="font-sans text-[11px] font-light text-neutral-400 leading-relaxed max-w-2xl">
+                    Cliquez sur la photo du hero pour la remplacer.
+                    Les photos des projets ne se modifient pas ici : elles sont définies à la création
+                    de chaque portfolio, dans l&apos;onglet Portfolio.
+                  </p>
+                </div>
               ) : activeTab === 'about' ? (
                 <AboutPage 
                   isEditing={true}
                   selectedKey={selectedKey}
                   onSelectKey={setSelectedKey}
-                  onUpdateText={(key, val) => updateField(key, 'value_fr', val)}
+                  onUpdateText={(key, val) => updateField(key, fieldFor(language), val)}
                   dbContent={contentList}
                 />
               ) : activeTab === 'contact' ? (
@@ -563,7 +780,7 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
                   isEditing={true}
                   selectedKey={selectedKey}
                   onSelectKey={setSelectedKey}
-                  onUpdateText={(key, val) => updateField(key, 'value_fr', val)}
+                  onUpdateText={(key, val) => updateField(key, fieldFor(language), val)}
                   dbContent={contentList}
                 />
               ) : (
@@ -583,7 +800,7 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
                       </div>
 
                       {portfolioSubTab === 'list' && !isEditingPortfolio && (
-                        <button onClick={() => { setEditingPortfolio({ id: null, title_fr: '', description_fr: '', category: 'retreats', images:[] }); setIsEditingPortfolio(true); }} className="text-[10px] uppercase tracking-[0.2em] font-light bg-neutral-950 text-white px-6 py-3 hover:bg-neutral-800 transition-colors cursor-pointer">
+                        <button onClick={() => { setEditingPortfolio({ id: null, title_en: '', description_en: '', category: 'retreats', images:[] }); setIsEditingPortfolio(true); }} className="text-[10px] uppercase tracking-[0.2em] font-light bg-neutral-950 text-white px-6 py-3 hover:bg-neutral-800 transition-colors cursor-pointer">
                           + Créer un Portfolio
                         </button>
                       )}
@@ -616,7 +833,7 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
                         isEditing={true}
                         selectedKey={selectedKey}
                         onSelectKey={setSelectedKey}
-                        onUpdateText={(key, val) => updateField(key, 'value_fr', val)}
+                        onUpdateText={(key, val) => updateField(key, fieldFor(language), val)}
                         dbContent={contentList}
                       />
                     </div>
@@ -634,12 +851,12 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
                         {/* Colonne Gauche du formulaire : Les Textes */}
                         <div className="space-y-6">
                           <div className="flex flex-col space-y-2">
-                            <label className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500">Titre (Français)</label>
+                            <label className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500">Titre (English)</label>
                             <input
                               type="text"
                               required
-                              value={editingPortfolio.title_fr}
-                              onChange={(e) => setEditingPortfolio({ ...editingPortfolio, title_fr: e.target.value })}
+                              value={editingPortfolio.title_en}
+                              onChange={(e) => setEditingPortfolio({ ...editingPortfolio, title_en: e.target.value })}
                               className="w-full bg-[#FAF9F6] border border-neutral-300 p-2.5 text-xs text-neutral-900 focus:outline-none"
                             />
                           </div>
@@ -651,19 +868,18 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
                               onChange={(e) => setEditingPortfolio({ ...editingPortfolio, category: e.target.value })}
                               className="w-full bg-[#FAF9F6] border border-neutral-300 p-2.5 text-xs text-neutral-800 focus:outline-none"
                             >
-                              <option value="retreats">Retraites Spirituelles</option>
-                              <option value="ceremonies">Cérémonies Sacrées</option>
-                              <option value="festivals">Festivals Conscients</option>
-                              <option value="portraits">Portraits Thérapeutiques</option>
+                              <option value="souls">Souls — Âmes</option>
+                              <option value="events">Events — Événements</option>
+                              <option value="retreats">Retreats — Retraites</option>
                             </select>
                           </div>
 
                           <div className="flex flex-col space-y-2">
-                            <label className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500">Description (Français)</label>
+                            <label className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500">Description (English)</label>
                             <textarea
                               rows={6}
-                              value={editingPortfolio.description_fr}
-                              onChange={(e) => setEditingPortfolio({ ...editingPortfolio, description_fr: e.target.value })}
+                              value={editingPortfolio.description_en}
+                              onChange={(e) => setEditingPortfolio({ ...editingPortfolio, description_en: e.target.value })}
                               className="w-full bg-[#FAF9F6] border border-neutral-300 p-2.5 text-xs text-neutral-900 focus:outline-none resize-none leading-relaxed"
                             />
                           </div>
@@ -678,7 +894,20 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
                                 const fileInput = document.getElementById('portfolio-multi-upload') as HTMLInputElement;
                                 fileInput?.click();
                               }}
-                              className="border border-dashed border-neutral-300 hover:border-neutral-800 bg-[#FAF9F6] p-6 text-center cursor-pointer transition-colors flex flex-col items-center justify-center space-y-2"
+                              onDragOver={(e) => { e.preventDefault(); setIsDraggingImages(true); }}
+                              onDragLeave={() => setIsDraggingImages(false)}
+                              onDrop={async (e) => {
+                                e.preventDefault();
+                                setIsDraggingImages(false);
+                                if (e.dataTransfer?.files?.length) {
+                                  await uploadPortfolioFiles(e.dataTransfer.files);
+                                }
+                              }}
+                              className={`border border-dashed p-6 text-center cursor-pointer transition-colors flex flex-col items-center justify-center space-y-2 ${
+                                isDraggingImages
+                                  ? 'border-neutral-950 bg-white'
+                                  : 'border-neutral-300 hover:border-neutral-800 bg-[#FAF9F6]'
+                              }`}
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-400">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -756,7 +985,7 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
                     /* 3. LISTE DES PORTFOLIOS */
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {portfoliosList
-                        .filter(p => p.title_fr.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .filter(p => (p.title_en || p.title_fr || '').toLowerCase().includes(searchQuery.toLowerCase()))
                         .sort((a, b) => sortBy === 'newest' 
                             ? new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                             : new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -767,7 +996,7 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
                             <div className="aspect-[3/2] w-full bg-[#FAF9F6] overflow-hidden">
                               {p.images[0] ? <img src={p.images[0]} className="w-full h-full object-cover" /> : <div className="text-xs text-neutral-400 italic">Aucun visuel</div>}
                             </div>
-                            <h4 className="font-serif text-lg">{p.title_fr}</h4>
+                            <h4 className="font-serif text-lg">{p.title_en || p.title_fr}</h4>
                           </div>
                           <div className="flex justify-between pt-4 border-t border-neutral-100 mt-4">
                             <button onClick={() => { setEditingPortfolio(p); setIsEditingPortfolio(true); }} className="text-xs underline cursor-pointer">Modifier</button>
@@ -830,17 +1059,30 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
                       </div>
                     </div>
                   ) : (
-                    /* S'il s'agit d'un texte : Double saisie synchronisée */
+                    /* S'il s'agit d'un texte : saisie anglaise (source) + traduction française */
                     <div className="space-y-5">
                       
-                      {/* Zone d'écriture synchronisée de droite (avec support des retours à la ligne) */}
+                      {/* Zone d'écriture — l'anglais est la langue source du site */}
                       <div className="flex flex-col space-y-2">
-                        <label className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500">Contenu (Français)</label>
+                        <label className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500">Contenu (English)</label>
                         <textarea
                           rows={4}
-                          value={activeItem.value_fr}
-                          onChange={(e) => updateField(activeItem.key, 'value_fr', e.target.value)}
+                          value={activeItem.value_en}
+                          onChange={(e) => updateField(activeItem.key, 'value_en', e.target.value)}
                           className="w-full bg-neutral-50 border border-neutral-300 p-2 text-xs text-neutral-800 focus:border-neutral-950 focus:outline-none font-sans font-light leading-relaxed resize-none"
+                        />
+                      </div>
+
+                      {/* Traduction française — générée à la sauvegarde, modifiable à la main */}
+                      <div className="flex flex-col space-y-2">
+                        <label className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-400">
+                          Traduction (Français) — auto
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={activeItem.value_fr}
+                          onChange={(e) => { setManualFrKeys(prev => prev.includes(activeItem.key) ? prev : [...prev, activeItem.key]); updateField(activeItem.key, 'value_fr', e.target.value); }}
+                          className="w-full bg-neutral-50 border border-neutral-200 p-2 text-xs text-neutral-500 focus:border-neutral-400 focus:outline-none font-sans font-light leading-relaxed resize-none"
                         />
                       </div>
 
@@ -857,7 +1099,7 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
     onChange={(e) => { setFontSearch(e.target.value); setIsFontListOpen(true); }}
     placeholder="Rechercher une police..."
     className="w-full bg-white border border-neutral-300 p-3 text-sm text-neutral-900 focus:border-neutral-950 focus:outline-none cursor-pointer shadow-sm"
-    style={{ fontFamily: activeItem.font_family || undefined }}
+    style={{ fontFamily: fontFamilyWithFallback(activeItem.font_family) }}
   />
 
   {isFontListOpen && (
@@ -913,6 +1155,27 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
                         <input type="checkbox" id="is_stamped" checked={activeItem.is_stamped} onChange={(e) => updateField(activeItem.key, 'is_stamped', e.target.checked)} className="w-4 h-4 border-neutral-300 focus:ring-neutral-950 accent-neutral-950 cursor-pointer" />
                         <label htmlFor="is_stamped" className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500 select-none cursor-pointer">Effet Gravure</label>
                       </div>
+
+                      {/* 5. Afficher / masquer sur le site.
+                          Masquer retire l'element du site public sans le
+                          supprimer : on peut le reafficher a tout moment. */}
+                      <div className="flex items-center space-x-3 pt-2 mt-2 border-t border-neutral-100">
+                        <input
+                          type="checkbox"
+                          id="is_hidden"
+                          checked={!!activeItem.is_hidden}
+                          onChange={(e) => updateField(activeItem.key, 'is_hidden', e.target.checked)}
+                          className="w-4 h-4 border-neutral-300 focus:ring-neutral-950 accent-neutral-950 cursor-pointer"
+                        />
+                        <label htmlFor="is_hidden" className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500 select-none cursor-pointer">
+                          Afficher sur le site
+                        </label>
+                      </div>
+                      {activeItem.is_hidden && (
+                        <p className="font-sans text-[10px] font-light text-red-600 leading-relaxed">
+          Cet élément est masqué : il n'apparaît pas sur le site public. Décochez pour le réafficher.
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -924,11 +1187,45 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
             </div>
 
             {/* BOUTON SAUVEGARDER DANS LA PALETTE DE DROITE */}
-            <div className="space-y-4 border-t border-neutral-200 pt-6">
-              {saveSuccess && <p className="text-center text-[10px] font-light text-green-700 tracking-wide animate-pulse">✓ Traduit en anglais & Sauvegardé !</p>}
+            <div className="space-y-3 border-t border-neutral-200 pt-6">
+              {saveSuccess && <p className="text-center text-[10px] font-light text-green-700 tracking-wide animate-pulse">✓ Sauvegardé & traduit en français</p>}
               <button onClick={handleSaveChanges} disabled={saving} className="w-full text-xs uppercase tracking-[0.25em] font-light bg-neutral-950 text-white hover:bg-neutral-800 transition-all duration-300 py-4 rounded-none shadow-md cursor-pointer disabled:opacity-50">
                 {saving ? 'Traduction en cours...' : 'Sauvegarder le site'}
               </button>
+              <button
+                onClick={handleRepairEnglish}
+                disabled={saving}
+                title="Retrante les textes dont la version anglaise est vide ou identique au français"
+                className="w-full text-[10px] uppercase tracking-[0.2em] font-light text-neutral-500 border border-neutral-300 py-3 hover:bg-neutral-50 hover:text-neutral-900 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Réparer les traductions
+              </button>
+
+              {/* Contenus masques : seul endroit ou l'on peut les retrouver,
+                  puisqu'ils ne sont plus cliquables sur la page. */}
+              {hiddenItems.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <p className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-red-600">
+                    Contenus masqués ({hiddenItems.length})
+                  </p>
+                  <p className="font-sans text-[10px] font-light text-neutral-500 leading-relaxed">
+                    Invisibles sur le site. Cliquez pour les réafficher.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {hiddenItems.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => updateField(item.key, 'is_hidden', false)}
+                        title={`Réafficher ${item.key}`}
+                        className="font-mono text-[10px] px-2 py-1 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
+                      >
+                        {item.key} +
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
