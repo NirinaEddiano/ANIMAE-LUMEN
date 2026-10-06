@@ -6,8 +6,9 @@ import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { useSiteContent, type SiteContentRow } from '@/lib/useSiteContent';
 import { fontFamilyWithFallback, isUntranslated } from '@/lib/content';
-import { NAV_CONTENT_KEYS, NAV_ITEMS, SITE_LOGO_DEFAULT } from '@/lib/navigation';
+import { NAV_CONTENT_KEYS, NAV_ITEMS, SITE_BYLINE_DEFAULT, SITE_BYLINE_KEY, SITE_LOGO_DEFAULT } from '@/lib/navigation';
 import BurgerMenu from './BurgerMenu';
+import DynamicText from './DynamicText';
 
 interface HeaderProps {
   isEditing?: boolean;
@@ -144,9 +145,24 @@ export default function Header({
         <Link
           href="/"
           onClick={(e) => isEditing && e.preventDefault()}
-          className={`shrink-0 font-sans text-[9px] md:text-[10px] tracking-[0.42em] uppercase ${label} transition-colors duration-500`}
+          className={`shrink-0 flex flex-col items-start gap-0.5 transition-colors duration-500`}
         >
-          {SITE_LOGO_DEFAULT}
+          <span className={`font-sans text-[9px] md:text-[10px] tracking-[0.42em] uppercase ${label}`}>
+            {SITE_LOGO_DEFAULT}
+          </span>
+          <DynamicText
+            dbKey={SITE_BYLINE_KEY}
+            as="span"
+            isEditing={isEditing}
+            selectedKey={selectedKey}
+            onSelectKey={onSelectKey}
+            onUpdateText={onUpdateText}
+            dbContent={dbContent}
+            defaultText={SITE_BYLINE_DEFAULT}
+            className={`font-sans text-[8px] md:text-[9px] tracking-[0.24em] ${
+              solid ? 'text-charcoal/55' : 'text-white/70'
+            }`}
+          />
         </Link>
 
         {/* MENU — CENTRE (desktop) */}

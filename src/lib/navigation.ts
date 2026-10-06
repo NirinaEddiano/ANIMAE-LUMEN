@@ -28,10 +28,10 @@ export const FIXED_BRAND_VALUES: Record<(typeof FIXED_BRAND_CONTENT_KEYS)[number
 };
 
 /**
- * Signature de l'artiste. Volontairement absente du header (le header ne
- * porte que le nom du site) : elle est affichee sous le nom, la ou le nom
- * apparait en grand, pour rester discrète mais visible.
- * Contenu dynamique : modifiable depuis l'admin comme le reste.
+ * Signature de l'artiste. Affichee sous le nom (dans le header, sous
+ * ANIMAE LUMEN, et la ou le nom apparait en grand), en plus petit pour
+ * rester discrete mais visible. Contenu dynamique : modifiable depuis
+ * l'admin comme le reste.
  */
 export const SITE_BYLINE_KEY = 'site_byline';
 export const SITE_BYLINE_DEFAULT = 'by Tina Rosae';

@@ -53,11 +53,19 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveNotice, setSaveNotice] = useState('');
+  const [saveNoticeTone, setSaveNoticeTone] = useState<'info' | 'error'>('info');
   const [fontSearch, setFontSearch] = useState('');
   const [isFontListOpen, setIsFontListOpen] = useState(false);
   const fontListRef = useRef<HTMLDivElement>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Retour discret dans la palette de droite : pas de fenetre systeme.
+  const showNotice = (message: string, tone: 'info' | 'error' = 'info') => {
+    setSaveNotice(message);
+    setSaveNoticeTone(tone);
+  };
 
   // État de l'onglet de page actif dans l'administration ('header', 'home', 'about' ou 'contact')
   // Onglet actif ('header', 'home', 'about', 'contact' ou 'portfolio')
@@ -191,14 +199,6 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   }
 };
 
-  // Supprimer définitivement un portfolio
-  const handleDeletePortfolio = async (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer définitivement ce portfolio et toute sa galerie ?")) {
-      await supabase.from('portfolios').delete().eq('id', id);
-      await fetchPortfolios();
-    }
-  };
-
   // Envoi d'une liste de Fichiers (ou de DataTransfer) vers Supabase Storage
   const uploadPortfolioFiles = async (fileList: FileList | File[]) => {
     const files = Array.from(fileList).filter((f) => f.type.startsWith('image/'));
@@ -308,6 +308,8 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   const handleSaveChanges = async () => {
     setSaving(true);
     setSaveSuccess(false);
+    setSaveNotice('');
+    setSaveNoticeTone('info');
 
     // On relit l'etat actuellement en base pour savoir si le francais est
     // une vraie redaction humaine ou une simple copie de l'anglais.
@@ -318,6 +320,7 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
 
     let failed = 0;
     let lastError = '';
+    let visibilityUnavailable = false;
 
     for (const item of contentList) {
       let finalFrValue = item.value_fr;
@@ -343,19 +346,30 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
       // L'erreur d'ecriture est recuperee et comptee : sans cela un echec
       // RLS ou reseau passait inaperçu et l'admin annonçait "sauvegardé".
       const fixedBrandValue = FIXED_BRAND_VALUES[item.key as keyof typeof FIXED_BRAND_VALUES];
-      const { error: writeError } = await supabase
+      const contentRow = {
+        key: item.key,
+        value_en: fixedBrandValue ?? item.value_en,
+        value_fr: fixedBrandValue ?? finalFrValue,
+        font_family: item.font_family,
+        font_size: item.font_size,
+        is_bold: item.is_bold,
+        is_stamped: item.is_stamped,
+        is_image: item.is_image,
+        is_hidden: item.is_hidden === true
+      };
+      let { error: writeError } = await supabase
         .from('site_content')
-        .upsert({
-          key: item.key,
-          value_en: fixedBrandValue ?? item.value_en,
-          value_fr: fixedBrandValue ?? finalFrValue,
-          font_family: item.font_family,
-          font_size: item.font_size,
-          is_bold: item.is_bold,
-          is_stamped: item.is_stamped,
-          is_image: item.is_image,
-          is_hidden: item.is_hidden === true
-        });
+        .upsert(contentRow);
+
+      // Une base sans la migration content_visibility ne doit pas bloquer
+      // l'enregistrement du texte et de sa typographie.
+      if (writeError?.message.includes("'is_hidden'") && writeError.message.includes('schema cache')) {
+        visibilityUnavailable = true;
+        const { is_hidden: _isHidden, ...legacyContentRow } = contentRow;
+        void _isHidden;
+        const retry = await supabase.from('site_content').upsert(legacyContentRow);
+        writeError = retry.error;
+      }
 
       if (writeError) {
         failed += 1;
@@ -370,13 +384,21 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
 
     if (failed > 0) {
       setSaveSuccess(false);
-      alert(
+      showNotice(
         `${failed} contenu(s) n'ont pas pu être enregistrés.\n\nDernière erreur : ${lastError}\n\n` +
-        `Vos autres modifications ont bien été enregistrées.`
+        `Vos autres modifications ont bien été enregistrées.`,
+        'error'
       );
     } else {
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
+      if (visibilityUnavailable) {
+        showNotice(
+          `Les textes et la typographie ont été enregistrés.\n\n` +
+          `La base Supabase n'a pas encore la colonne is_hidden : les options pour masquer un contenu ne peuvent pas être enregistrées. ` +
+          `Appliquez la migration supabase/migrations/202609300001_content_visibility.sql pour les activer.`
+        );
+      }
     }
   };
 
@@ -424,8 +446,9 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
     // Permet de rechoisir exactement le meme fichier deux fois de suite.
     e.target.value = '';
 
+    setSaveNotice('');
     if (!key) {
-      alert("Aucune clé sélectionnée : cliquez d'abord sur l'image à remplacer dans la page.");
+      showNotice("Aucune image sélectionnée : cliquez d'abord sur la photo à remplacer dans la page.");
       return;
     }
 
@@ -439,7 +462,7 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
       .upload(filePath, file);
 
     if (uploadError) {
-      alert("Erreur d'envoi du fichier : " + uploadError.message);
+      showNotice("L'envoi du fichier a échoué : " + uploadError.message, 'error');
       setSaving(false);
       return;
     }
@@ -448,7 +471,7 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
     const publicUrl = data?.publicUrl;
 
     if (!publicUrl) {
-      alert("Erreur : l'adresse du fichier n'a pas pu être générée.");
+      showNotice("L'adresse du fichier n'a pas pu être générée.", 'error');
       setSaving(false);
       return;
     }
@@ -462,7 +485,7 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
       .eq('key', key);
 
     if (dbError) {
-      alert("Photo envoyée, mais l'enregistrement a échoué : " + dbError.message);
+      showNotice("Photo envoyée, mais l'enregistrement a échoué : " + dbError.message, 'error');
     } else {
       clearSiteContentCache();
       setSaveSuccess(true);
@@ -1188,7 +1211,17 @@ is_bold: false,
 
             {/* BOUTON SAUVEGARDER DANS LA PALETTE DE DROITE */}
             <div className="space-y-3 border-t border-neutral-200 pt-6">
-              {saveSuccess && <p className="text-center text-[10px] font-light text-green-700 tracking-wide animate-pulse">✓ Sauvegardé & traduit en français</p>}
+              {saveSuccess && <p className="text-center text-[10px] font-light text-green-700 tracking-wide">✓ Sauvegardé</p>}
+              {saveNotice && (
+                <p
+                  role="status"
+                  className={`mt-2 text-center text-[10px] font-light tracking-wide leading-relaxed whitespace-pre-line ${
+                    saveNoticeTone === 'error' ? 'text-red-600' : 'text-amber-700'
+                  }`}
+                >
+                  {saveNotice}
+                </p>
+              )}
               <button onClick={handleSaveChanges} disabled={saving} className="w-full text-xs uppercase tracking-[0.25em] font-light bg-neutral-950 text-white hover:bg-neutral-800 transition-all duration-300 py-4 rounded-none shadow-md cursor-pointer disabled:opacity-50">
                 {saving ? 'Traduction en cours...' : 'Sauvegarder le site'}
               </button>
