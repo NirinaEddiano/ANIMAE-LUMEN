@@ -13,6 +13,7 @@ export interface SiteContentRow {
   is_stamped: boolean;
   is_image: boolean;
   is_hidden?: boolean;
+  is_deleted?: boolean;
 }
 
 const cache = new Map<string, SiteContentRow>();

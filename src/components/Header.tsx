@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { useSiteContent, type SiteContentRow } from '@/lib/useSiteContent';
 import { fontFamilyWithFallback, isUntranslated } from '@/lib/content';
-import { NAV_CONTENT_KEYS, NAV_ITEMS, SITE_BYLINE_DEFAULT, SITE_BYLINE_KEY, SITE_LOGO_DEFAULT } from '@/lib/navigation';
+import { NAV_CONTENT_KEYS, NAV_ITEMS, SITE_BYLINE_DEFAULT, SITE_BYLINE_KEY, SITE_LOGO_DEFAULT, SITE_LOGO_KEY } from '@/lib/navigation';
 import BurgerMenu from './BurgerMenu';
 import DynamicText from './DynamicText';
 
@@ -93,6 +93,7 @@ export default function Header({
   const row = (key: string): SiteContentRow | undefined => rows.find((r) => r.key === key);
   const text = (key: string, fallback: string): string => {
     const item = row(key);
+    if (item?.is_deleted) return '';
     // EN identique au FR (traduction jamais faite) → libellé codé en dur.
     if (!item || (language === 'en' && isUntranslated(item))) return fallback;
     return ((language === 'fr' ? item.value_fr : item.value_en) || '').trim() || fallback;
@@ -100,7 +101,11 @@ export default function Header({
   const styleOf = (key: string): CSSProperties | undefined => {
     const item = row(key);
     if (!item) return undefined;
-    return { fontFamily: fontFamilyWithFallback(item.font_family), fontWeight: item.is_bold ? 'bold' : undefined };
+    return {
+      fontFamily: fontFamilyWithFallback(item.font_family),
+      fontSize: item.font_size || undefined,
+      fontWeight: item.is_bold ? 'bold' : undefined,
+    };
   };
 
   const solid = preview || isEditing || scrolled;
@@ -125,6 +130,7 @@ export default function Header({
     const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
     return (
       <Link
+        key={item.dbKey}
         href={item.href}
         onClick={(e) => isEditing && e.preventDefault()}
         className={`${className} transition-opacity duration-300 ${isActive ? 'opacity-100' : 'opacity-70 hover:opacity-100'}`}
@@ -147,9 +153,17 @@ export default function Header({
           onClick={(e) => isEditing && e.preventDefault()}
           className={`shrink-0 flex flex-col items-start gap-0.5 transition-colors duration-500`}
         >
-          <span className={`font-sans text-[9px] md:text-[10px] tracking-[0.42em] uppercase ${label}`}>
-            {SITE_LOGO_DEFAULT}
-          </span>
+          <DynamicText
+            dbKey={SITE_LOGO_KEY}
+            as="span"
+            isEditing={isEditing}
+            selectedKey={selectedKey}
+            onSelectKey={onSelectKey}
+            onUpdateText={onUpdateText}
+            dbContent={dbContent}
+            defaultText={SITE_LOGO_DEFAULT}
+            className={`font-sans text-[9px] md:text-[10px] tracking-[0.42em] uppercase ${label}`}
+          />
           <DynamicText
             dbKey={SITE_BYLINE_KEY}
             as="span"

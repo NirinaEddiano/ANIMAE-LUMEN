@@ -5,7 +5,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import DynamicText from './DynamicText';
 import InstagramSection from './InstagramSection';
 import { useSiteContent } from '@/lib/useSiteContent';
-import { SITE_BYLINE_DEFAULT, SITE_BYLINE_KEY, SITE_EMAIL_DEFAULT, SITE_INSTAGRAM_DEFAULT, SITE_LOGO_DEFAULT } from '@/lib/navigation';
+import { SITE_BYLINE_DEFAULT, SITE_BYLINE_KEY, SITE_EMAIL_DEFAULT, SITE_INSTAGRAM_DEFAULT, SITE_LOGO_DEFAULT, SITE_LOGO_KEY } from '@/lib/navigation';
 
 // Cles editees depuis l'admin pour le footer.
 const FOOTER_KEYS = [
@@ -30,17 +30,18 @@ export default function Footer({
 } = {}) {
   const { language } = useLanguage();
   const rows = useSiteContent(FOOTER_KEYS);
+  const contentRows = isEditing ? dbContent : rows;
 
   const value = (key: string, fr: string, en: string): string => {
-    const row = rows.find((r) => r.key === key);
+    const row = contentRows.find((r) => r.key === key);
     const raw = language === 'fr' ? row?.value_fr : row?.value_en;
-    return (raw || '').trim() || fr;
+    return (raw || '').trim() || (language === 'fr' ? fr : en);
   };
 
   // L'email et le pseudo Instagram servent a la fois a l'affichage ET au lien :
   // ils viennent de la base, jamais d'une constante dans le code.
-  const email = SITE_EMAIL_DEFAULT;
-  const instaHandle = SITE_INSTAGRAM_DEFAULT;
+  const email = value('footer_email', SITE_EMAIL_DEFAULT, SITE_EMAIL_DEFAULT);
+  const instaHandle = value('insta_username', SITE_INSTAGRAM_DEFAULT, SITE_INSTAGRAM_DEFAULT);
 
   return (
     <footer
@@ -88,9 +89,19 @@ export default function Footer({
               />
               <Link
                 href="/contact"
+                onClick={(event) => isEditing && event.preventDefault()}
                 className="inline-block text-[10px] md:text-[11px] uppercase tracking-[0.28em] font-light text-charcoal/70 border border-charcoal/20 px-7 py-3 hover:bg-charcoal hover:text-white hover:border-charcoal transition-all duration-500"
               >
-                {value('footer_cta_text', 'Prendre contact', 'Get in touch')}
+                <DynamicText
+                  dbKey="footer_cta_text"
+                  as="span"
+                  isEditing={isEditing}
+                  selectedKey={selectedKey}
+                  onSelectKey={onSelectKey}
+                  onUpdateText={onUpdateText}
+                  dbContent={dbContent}
+                  defaultText={language === 'fr' ? 'Prendre contact' : 'Get in touch'}
+                />
               </Link>
             </div>
 
@@ -98,27 +109,30 @@ export default function Footer({
             <div className="flex flex-col md:flex-row items-center justify-center gap-y-3 md:gap-x-7 text-[10px] md:text-[11px] font-light text-charcoal/55 tracking-[0.14em]">
               <a
                 href={`mailto:${email}`}
+                onClick={(event) => isEditing && event.preventDefault()}
                 className="hover:text-charcoal transition-colors duration-300 lowercase font-sans"
               >
-                {email}
+                <DynamicText dbKey="footer_email" as="span" isEditing={isEditing} selectedKey={selectedKey} onSelectKey={onSelectKey} onUpdateText={onUpdateText} dbContent={dbContent} defaultText={SITE_EMAIL_DEFAULT} />
               </a>
               <span className="hidden md:inline text-charcoal/20">|</span>
               <a
                 href="https://wa.me/33683843807"
+                onClick={(event) => isEditing && event.preventDefault()}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-charcoal transition-colors duration-300 font-sans"
               >
-                {value('footer_whatsapp_label', 'WhatsApp', 'WhatsApp')}
+                <DynamicText dbKey="footer_whatsapp_label" as="span" isEditing={isEditing} selectedKey={selectedKey} onSelectKey={onSelectKey} onUpdateText={onUpdateText} dbContent={dbContent} defaultText="WhatsApp" />
               </a>
               <span className="hidden md:inline text-charcoal/20">|</span>
               <a
                 href={`https://www.instagram.com/${instaHandle.replace(/^@/, '')}`}
+                onClick={(event) => isEditing && event.preventDefault()}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-charcoal transition-colors duration-300 lowercase font-sans"
               >
-                {instaHandle}
+                <DynamicText dbKey="insta_username" as="span" isEditing={isEditing} selectedKey={selectedKey} onSelectKey={onSelectKey} onUpdateText={onUpdateText} dbContent={dbContent} defaultText={SITE_INSTAGRAM_DEFAULT} />
               </a>
             </div>
 
@@ -129,7 +143,7 @@ export default function Footer({
                 <span className="text-[10px] tracking-[0.18em] font-light">
                   &copy; {new Date().getFullYear()}
                 </span>
-                <span className="text-[10px] tracking-[0.18em] font-light">{SITE_LOGO_DEFAULT}</span>
+                <DynamicText dbKey={SITE_LOGO_KEY} as="span" isEditing={isEditing} selectedKey={selectedKey} onSelectKey={onSelectKey} onUpdateText={onUpdateText} dbContent={dbContent} defaultText={SITE_LOGO_DEFAULT} className="text-[10px] tracking-[0.18em] font-light" />
                 <DynamicText
                   dbKey={SITE_BYLINE_KEY}
                   as="span"

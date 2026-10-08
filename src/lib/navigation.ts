@@ -9,6 +9,8 @@ export const SITE_LOGO_KEY = 'site_title';
 export const SITE_LOGO_DEFAULT = 'ANIMAE LUMEN';
 export const SITE_EMAIL_DEFAULT = 'animaelumen@outlook.com';
 export const SITE_INSTAGRAM_DEFAULT = '@animaelumen';
+// These identifiers are shared between French and English, so they are not
+// auto-translated. Admin edits are still allowed and mirrored to both columns.
 export const FIXED_BRAND_CONTENT_KEYS = [
   SITE_LOGO_KEY,
   'home_hero_title',
@@ -18,15 +20,6 @@ export const FIXED_BRAND_CONTENT_KEYS = [
   'contact_instagram',
 ] as const;
 
-export const FIXED_BRAND_VALUES: Record<(typeof FIXED_BRAND_CONTENT_KEYS)[number], string> = {
-  [SITE_LOGO_KEY]: SITE_LOGO_DEFAULT,
-  home_hero_title: SITE_LOGO_DEFAULT,
-  footer_email: SITE_EMAIL_DEFAULT,
-  contact_email: SITE_EMAIL_DEFAULT,
-  insta_username: SITE_INSTAGRAM_DEFAULT,
-  contact_instagram: SITE_INSTAGRAM_DEFAULT,
-};
-
 /**
  * Signature de l'artiste. Affichee sous le nom (dans le header, sous
  * ANIMAE LUMEN, et la ou le nom apparait en grand), en plus petit pour
@@ -34,7 +27,7 @@ export const FIXED_BRAND_VALUES: Record<(typeof FIXED_BRAND_CONTENT_KEYS)[number
  * l'admin comme le reste.
  */
 export const SITE_BYLINE_KEY = 'site_byline';
-export const SITE_BYLINE_DEFAULT = 'by Tina Rosae';
+export const SITE_BYLINE_DEFAULT = 'by TINA ROSAE';
 
 export const NAV_ITEMS: NavItem[] = [
   { href: '/services/souls', dbKey: 'nav_souls', labelFr: 'Âmes', labelEn: 'Souls' },

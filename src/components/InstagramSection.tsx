@@ -86,6 +86,7 @@ export default function InstagramSection({
    *  eu lieu → on retombe sur le repli localisé. */
   const resolveText = (key: string): string => {
     const fromDb = findRow(key);
+    if (fromDb?.is_deleted) return '';
     if (fromDb && !(language === 'en' && isUntranslated(fromDb))) {
       const val = ((language === 'fr' ? fromDb.value_fr : fromDb.value_en) || '').trim();
       if (val) return val;
@@ -107,7 +108,7 @@ export default function InstagramSection({
     if (!frValue) return;
     onUpdateText(key, frValue);
     try {
-      const enValue = await autoTranslate(frValue);
+      const enValue = key === 'insta_username' ? frValue : await autoTranslate(frValue);
       await supabase.from('site_content').upsert(
         { key, value_fr: frValue, value_en: enValue },
         { onConflict: 'key' }
@@ -154,7 +155,7 @@ export default function InstagramSection({
   }
 
   const profileImg = resolveImage('insta_profile_img');
-  const username = SITE_INSTAGRAM_DEFAULT;
+  const username = resolveText('insta_username');
   const btnText = resolveText('insta_btn_text');
   const byline = resolveText(SITE_BYLINE_KEY);
 
@@ -211,9 +212,10 @@ export default function InstagramSection({
             modifie : seule la signature s'ajoute a sa droite, plus petite. */}
         <div className="mt-1 flex flex-wrap items-baseline justify-center gap-x-2.5 gap-y-0.5">
           <span
-            contentEditable={false}
+            contentEditable={isEditing}
             suppressContentEditableWarning={true}
             onBlur={(e) => handleBlur('insta_username', e)}
+            onClick={() => isEditing && onSelectKey('insta_username')}
             className={`font-sans ${compact ? 'text-sm md:text-[15px] font-medium text-neutral-900/75' : 'text-base md:text-lg font-semibold text-neutral-900'} outline-none rounded-xs whitespace-pre-wrap ${
               isEditing ? 'hover:ring-1 hover:ring-sage/40 cursor-text' : ''
             } ${isEditing && selectedKey === 'insta_username' ? 'ring-1 ring-sage/40 bg-neutral-50' : ''}`}

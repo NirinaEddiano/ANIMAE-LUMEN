@@ -87,6 +87,9 @@ export default function Hero({
     if (!item) return {};
     return {
       fontFamily: fontFamilyWithFallback(item.font_family),
+      fontSize: item.font_size
+        ? `clamp(min(24px, ${item.font_size}), 8vw, ${item.font_size})`
+        : undefined,
       fontWeight: item.is_bold ? 'bold' : undefined,
     };
   };
@@ -159,13 +162,13 @@ export default function Hero({
       {/* Contenu central */}
       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-6 pointer-events-none">
         <div className="max-w-3xl space-y-4 md:space-y-8 pointer-events-none">
-          {/* 1. TITRE PRINCIPAL + SIGNATURE — le nom et « by Tina Rosae » sur la
+          {/* 1. TITRE PRINCIPAL + SIGNATURE — le nom et « by TINA ROSAE » sur la
               MÊME ligne, la signature alignee sur la ligne de base du nom et
               posee a sa droite. Plus petite que le nom, mais assez grande pour
               etre lue. Contenu dynamique (cles home_hero_title / site_byline). */}
           <div className="flex flex-wrap items-baseline justify-center gap-x-3 md:gap-x-5 gap-y-1">
             <h1
-              contentEditable={false}
+              contentEditable={isEditing}
               suppressContentEditableWarning
               onBlur={(e) => handleBlur('home_hero_title', e)}
               onClick={() => handleClick('home_hero_title')}
@@ -174,7 +177,7 @@ export default function Hero({
                 isEditing ? 'cursor-text' : ''
               } ${isEditing && selectedKey === 'home_hero_title' ? 'ring-2 ring-sage/40 bg-white/5' : ''}`}
             >
-              ANIMAE LUMEN
+              {get('home_hero_title')}
             </h1>
 
             <p

@@ -8,7 +8,7 @@ ALTER TABLE site_content
 
 -- La signature de l'artiste est editable et masquable comme le reste.
 INSERT INTO site_content (key, value_fr, value_en, font_family, font_size, is_image, is_hidden)
-VALUES ('site_byline', 'by Tina Rosae', 'by Tina Rosae', 'Minionpro', '', false, false)
+VALUES ('site_byline', 'by TINA ROSAE', 'by TINA ROSAE', 'Minionpro', '', false, false)
 ON CONFLICT (key) DO NOTHING;
 
 -- Textes du footer : ils etaient codes en dur dans le composant, donc

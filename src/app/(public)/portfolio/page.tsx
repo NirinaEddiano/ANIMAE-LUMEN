@@ -119,6 +119,7 @@ export default function PortfolioPage({
 
   const getContent = (key: string, field: 'value_fr' | 'value_en', defaultValue: string) => {
     const item = activeContent.find((i: any) => i.key === key);
+    if (item?.is_deleted) return '';
     // EN identique au FR (traduction jamais faite) → repli anglais codé en dur.
     // Côté FR, value_fr fait toujours foi.
     if (!item || (field === 'value_en' && isUntranslated(item))) return defaultValue;
@@ -127,8 +128,9 @@ export default function PortfolioPage({
 
   const getImage = (key: string, defaultValue: string) => {
     const item = activeContent.find((i: { key: string }) => i.key === key) as
-      | { value_fr?: string; value_en?: string }
+      | { value_fr?: string; value_en?: string; is_deleted?: boolean }
       | undefined;
+    if (item?.is_deleted) return '';
     // Les URL d'images sont identiques dans les deux colonnes : on accepte les deux.
     return item?.value_en || item?.value_fr || defaultValue;
   };

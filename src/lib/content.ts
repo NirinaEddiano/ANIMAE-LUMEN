@@ -5,6 +5,7 @@ export interface ContentLike {
   key: string;
   value_fr: string;
   value_en: string;
+  is_deleted?: boolean | null;
 }
 
 export function fieldFor(language: Language): ContentField {
@@ -41,6 +42,7 @@ export function readContent(
 ): string {
   const item = items?.find((i) => i.key === key);
   if (!item) return fallback;
+  if (item.is_deleted === true) return '';
   if (language === 'en' && isUntranslated(item)) return fallback;
   return ((item[fieldFor(language)] as string) || '').trim() || fallback;
 }
@@ -60,6 +62,7 @@ export function readImage(
 ): string {
   const item = items?.find((i) => i.key === key);
   if (!item) return fallback;
+  if (item.is_deleted === true) return '';
   return item.value_en || item.value_fr || fallback;
 }
 
@@ -87,14 +90,20 @@ export function isHidden(
   return item?.is_hidden === true;
 }
 
+/** A deleted zone is removed from public rendering while its content remains recoverable in admin. */
+export function isDeleted(item: { is_deleted?: boolean | null } | undefined | null): boolean {
+  return item?.is_deleted === true;
+}
+
 /**
  * Variante pour les composants quiDiposent d'une liste de contenus.
  */
 export function isHiddenKey(
-  items: ReadonlyArray<{ key: string; is_hidden?: boolean | null }> | undefined | null,
+  items: ReadonlyArray<{ key: string; is_hidden?: boolean | null; is_deleted?: boolean | null }> | undefined | null,
   key: string
 ): boolean {
-  return isHidden(items?.find((i) => i.key === key));
+  const item = items?.find((i) => i.key === key);
+  return isHidden(item) || isDeleted(item);
 }
 
 /** Pile de repli commune. Voir le bloc @font-face de globals.css. */

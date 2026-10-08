@@ -12,7 +12,7 @@ import Footer from '@/components/Footer'; // Importation directe du vrai pied de
 import ServiceCategoryPage from '../(public)/services/[slug]/page'; // Les 3 pages service, éditables ici !
 import { useLanguage } from '@/context/LanguageContext';
 import { fieldFor, fontFamilyWithFallback, isImageKey } from '@/lib/content';
-import { FIXED_BRAND_CONTENT_KEYS, FIXED_BRAND_VALUES } from '@/lib/navigation';
+import { FIXED_BRAND_CONTENT_KEYS } from '@/lib/navigation';
 
 interface ContentItem {
   key: string;
@@ -24,6 +24,7 @@ is_bold: boolean;
   is_stamped: boolean;
   is_image: boolean;
   is_hidden?: boolean;
+  is_deleted?: boolean;
   }
 
 const GOOGLE_FONTS = [
@@ -78,6 +79,7 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
   // États pour le Pop-up de suppression moderne
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [portfolioToDelete, setPortfolioToDelete] = useState<string | null>(null);
+  const [deletingContent, setDeletingContent] = useState(false);
 
   // États pour la gestion des Portfolios (Espace 2)
   const [portfoliosList, setPortfoliosList] = useState<any[]>([]);
@@ -255,6 +257,32 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
     }
   };
 
+  const deleteSelectedContent = async () => {
+    if (
+      !selectedKey ||
+      FIXED_BRAND_CONTENT_KEYS.includes(selectedKey as (typeof FIXED_BRAND_CONTENT_KEYS)[number]) ||
+      !contentList.some((item) => item.key === selectedKey)
+    ) return;
+    const key = selectedKey;
+    if (!window.confirm(`Retirer « ${key} » du site ? Tu pourras le restaurer depuis l’administration.`)) return;
+
+    setDeletingContent(true);
+    const { error } = await supabase
+      .from('site_content')
+      .update({ is_deleted: true })
+      .eq('key', key);
+    setDeletingContent(false);
+    if (error) {
+      showNotice(`Impossible de retirer ${key} du site : ${error.message}`, 'error');
+      return;
+    }
+
+    setContentList((items) => items.map((item) => item.key === key ? { ...item, is_deleted: true } : item));
+    setSelectedKey(null);
+    clearSiteContentCache();
+    showNotice(`« ${key} » n'apparaît plus sur le site. Tu peux le restaurer dans « Éléments supprimés ».`);
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
@@ -324,6 +352,9 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
 
     for (const item of contentList) {
       let finalFrValue = item.value_fr;
+      const isSharedContent = FIXED_BRAND_CONTENT_KEYS.includes(
+        item.key as (typeof FIXED_BRAND_CONTENT_KEYS)[number]
+      );
       const before = storedMap.get(item.key);
       const frWasOnlyACopyOfEn =
         !before || (!before.value_fr && !before.value_en) ||
@@ -332,8 +363,9 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
       // On ne regenere le francais que s'il est vide, copie sale, ou saisie
       // manuellement dans cette session. Jamais on n'ecrase une redaction.
       const shouldTranslate =
+        !item.is_deleted &&
         !item.is_image &&
-        !FIXED_BRAND_CONTENT_KEYS.includes(item.key as (typeof FIXED_BRAND_CONTENT_KEYS)[number]) &&
+        !isSharedContent &&
         item.value_en &&
         !manualFrKeys.includes(item.key) &&
         (!item.value_fr || !item.value_fr.trim() || frWasOnlyACopyOfEn);
@@ -345,17 +377,17 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
 
       // L'erreur d'ecriture est recuperee et comptee : sans cela un echec
       // RLS ou reseau passait inaperçu et l'admin annonçait "sauvegardé".
-      const fixedBrandValue = FIXED_BRAND_VALUES[item.key as keyof typeof FIXED_BRAND_VALUES];
       const contentRow = {
         key: item.key,
-        value_en: fixedBrandValue ?? item.value_en,
-        value_fr: fixedBrandValue ?? finalFrValue,
+        value_en: item.value_en,
+        value_fr: isSharedContent ? item.value_en : finalFrValue,
         font_family: item.font_family,
         font_size: item.font_size,
         is_bold: item.is_bold,
         is_stamped: item.is_stamped,
         is_image: item.is_image,
-        is_hidden: item.is_hidden === true
+        is_hidden: item.is_hidden === true,
+        is_deleted: item.is_deleted === true,
       };
       let { error: writeError } = await supabase
         .from('site_content')
@@ -408,7 +440,7 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
     setSaving(true);
     setSaveSuccess(false);
     const broken = contentList.filter(
-      (item) => !item.is_image && item.value_fr && item.value_fr.trim()
+      (item) => !item.is_deleted && !item.is_image && item.value_fr && item.value_fr.trim()
         && !FIXED_BRAND_CONTENT_KEYS.includes(item.key as (typeof FIXED_BRAND_CONTENT_KEYS)[number])
         && (!item.value_en || !item.value_en.trim() || item.value_en === item.value_fr)
     );
@@ -501,18 +533,26 @@ const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
 
   // Fonction de mise à jour intelligente Odoo : met à jour le champ ou le crée s'il n'existe pas encore
   const updateField = (key: string, field: keyof ContentItem, value: any) => {
-    if (FIXED_BRAND_CONTENT_KEYS.includes(key as (typeof FIXED_BRAND_CONTENT_KEYS)[number])) return;
+    const isSharedBrandValue = FIXED_BRAND_CONTENT_KEYS.includes(
+      key as (typeof FIXED_BRAND_CONTENT_KEYS)[number]
+    );
     setContentList(prev => {
       const exists = prev.some(item => item.key === key);
       if (exists) {
         // Si l'élément existe, on le met à jour normalement
-        return prev.map(item => (item.key === key ? { ...item, [field]: value } : item));
+        return prev.map(item => {
+          if (item.key !== key) return item;
+          if (isSharedBrandValue && (field === 'value_fr' || field === 'value_en')) {
+            return { ...item, value_fr: value, value_en: value };
+          }
+          return { ...item, [field]: value };
+        });
       } else {
         // S'il n'existe pas encore en base de données, on le crée à la volée dans l'état local !
         const newItem: ContentItem = {
           key,
-          value_fr: field === 'value_fr' ? value : '',
-          value_en: field === 'value_en' ? value : '',
+          value_fr: isSharedBrandValue && (field === 'value_fr' || field === 'value_en') ? value : field === 'value_fr' ? value : '',
+          value_en: isSharedBrandValue && (field === 'value_fr' || field === 'value_en') ? value : field === 'value_en' ? value : '',
           font_family: 'Minionpro',
           font_size: '16px',
           is_bold: false,
@@ -604,6 +644,7 @@ is_bold: false,
   // Contenus masques : ils ne sont plus cliquables sur la page puisque la
   // section a disparu. Cette liste est le seul moyen de les reafficher.
   const hiddenItems = contentList.filter((item) => item.is_hidden === true);
+  const deletedItems = contentList.filter((item) => item.is_deleted === true);
 
   if (loading) {
     return (
@@ -614,7 +655,7 @@ is_bold: false,
   }
 
   // A. ÉCRAN CONNECTÉ : VOTRE VRAI SITE À GAUCHE, LA PALETTE TRÈS FINE À DROITE
-  if (user && contentList.length > 0) {
+  if (user) {
     return (
       <div className="min-h-screen bg-[#FAF9F6] text-neutral-950 flex flex-col relative pb-12 overflow-hidden">
         
@@ -773,6 +814,15 @@ is_bold: false,
                     ))}
                   </div>
 
+                  <div role="note" className="mx-auto max-w-3xl border-l-4 border-amber-500 bg-amber-50 px-5 py-4 text-left shadow-sm">
+                    <p className="font-sans text-xs font-semibold uppercase tracking-[0.12em] text-neutral-900">
+                      Modifier les photos
+                    </p>
+                    <p className="mt-1 font-sans text-sm leading-relaxed text-neutral-700">
+                      Cliquez sur la grande photo du hero pour la remplacer. Pour modifier les photos des projets, ouvrez l’onglet Portfolio.
+                    </p>
+                  </div>
+
                   <div className="bg-[#FAF9F6] border border-neutral-200">
                     <ServiceCategoryPage
                       forcedSlug={serviceSlug}
@@ -784,11 +834,6 @@ is_bold: false,
                     />
                   </div>
 
-                  <p className="font-sans text-[11px] font-light text-neutral-400 leading-relaxed max-w-2xl">
-                    Cliquez sur la photo du hero pour la remplacer.
-                    Les photos des projets ne se modifient pas ici : elles sont définies à la création
-                    de chaque portfolio, dans l&apos;onglet Portfolio.
-                  </p>
                 </div>
               ) : activeTab === 'about' ? (
                 <AboutPage 
@@ -1199,6 +1244,18 @@ is_bold: false,
           Cet élément est masqué : il n'apparaît pas sur le site public. Décochez pour le réafficher.
                         </p>
                       )}
+                      {!activeItem.is_image &&
+                        !FIXED_BRAND_CONTENT_KEYS.includes(activeItem.key as (typeof FIXED_BRAND_CONTENT_KEYS)[number]) &&
+                        contentList.some((item) => item.key === activeItem.key) && (
+                        <button
+                          type="button"
+                          onClick={deleteSelectedContent}
+                          disabled={deletingContent || saving}
+                          className="w-full border border-red-300 px-3 py-2 text-left font-sans text-[10px] uppercase tracking-[0.16em] text-red-700 hover:bg-red-50 disabled:opacity-50"
+                        >
+                          {deletingContent ? 'Suppression…' : 'Retirer cette zone du site'}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1254,6 +1311,49 @@ is_bold: false,
                         className="font-mono text-[10px] px-2 py-1 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
                       >
                         {item.key} +
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {deletedItems.length > 0 && (
+                <div className="space-y-2 border-t border-neutral-200 pt-3">
+                  <p className="font-sans text-[10px] uppercase tracking-[0.2em] font-light text-neutral-700">
+                    Éléments supprimés ({deletedItems.length})
+                  </p>
+                  <p className="font-sans text-[10px] font-light text-neutral-500 leading-relaxed">
+                    Ils sont retirés du site. Cliquez sur un nom pour le restaurer.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {deletedItems.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        disabled={saving || deletingContent}
+                        onClick={async () => {
+                          setSaving(true);
+                          const { error } = await supabase
+                            .from('site_content')
+                            .update({ is_deleted: false, is_hidden: false })
+                            .eq('key', item.key);
+                          setSaving(false);
+                          if (error) {
+                            showNotice(`Impossible de restaurer ${item.key} : ${error.message}`, 'error');
+                            return;
+                          }
+                          setContentList((items) => items.map((content) =>
+                            content.key === item.key
+                              ? { ...content, is_deleted: false, is_hidden: false }
+                              : content
+                          ));
+                          setSelectedKey(item.key);
+                          clearSiteContentCache();
+                          showNotice(`« ${item.key} » est restauré sur le site.`);
+                        }}
+                        title={`Restaurer ${item.key}`}
+                        className="font-mono text-[10px] px-2 py-1 bg-neutral-50 border border-neutral-300 text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {item.key} ↶
                       </button>
                     ))}
                   </div>

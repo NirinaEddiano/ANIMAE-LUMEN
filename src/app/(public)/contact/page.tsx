@@ -4,7 +4,6 @@ import { useLanguage } from '@/context/LanguageContext';
 import { fontFamilyWithFallback, isHiddenKey, isUntranslated } from '@/lib/content';
 import { supabase } from '@/lib/supabase';
 import { useState, useEffect, type CSSProperties, type ReactNode } from 'react';
-import { SITE_EMAIL_DEFAULT, SITE_INSTAGRAM_DEFAULT } from '@/lib/navigation';
 
 /** Champ de formulaire dont le libellé est modifiable depuis l'admin.
  *  L'input enfant n'est jamais touché, seule l'étiquette est éditable. */
@@ -187,8 +186,9 @@ export default function ContactPage({
    *  et repli anglais si value_en n'est qu'une copie du français. */
   const t = (key: string, override?: { fr?: string; en?: string }): string => {
     const fallback = override ?? CONTACT_DEFAULTS[key] ?? { fr: '', en: '' };
-    const item = findRow(key) as { value_fr?: string; value_en?: string } | undefined;
+    const item = findRow(key) as { value_fr?: string; value_en?: string; is_deleted?: boolean } | undefined;
     if (!item) return fallback[language] ?? '';
+    if (item.is_deleted) return '';
     if (language === 'en' && isUntranslated(item as any)) return fallback.en ?? '';
     return ((item[`value_${language}`] as string) || '').trim() || fallback[language] || '';
   };
@@ -196,9 +196,8 @@ export default function ContactPage({
   // Coordonnées, liens et images : identiques dans les deux colonnes,
   // on lit donc l'anglais et on accepte le français si l'anglais est vide.
   const neutral = (key: string): string => {
-    if (key === 'contact_email') return SITE_EMAIL_DEFAULT;
-    if (key === 'contact_instagram') return SITE_INSTAGRAM_DEFAULT;
-    const item = findRow(key) as { value_fr?: string; value_en?: string } | undefined;
+    const item = findRow(key) as { value_fr?: string; value_en?: string; is_deleted?: boolean } | undefined;
+    if (item?.is_deleted) return '';
     return (item?.value_en || item?.value_fr || '').trim() || CONTACT_LINKS[key] || CONTACT_IMAGES[key] || '';
   };
 
@@ -207,6 +206,7 @@ export default function ContactPage({
     if (!item) return {};
     return {
       fontFamily: fontFamilyWithFallback(item.font_family) || undefined,
+      fontSize: item.font_size || undefined,
       fontWeight: item.is_bold ? 'bold' : undefined,
     };
   };

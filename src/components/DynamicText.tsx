@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabase } from '@/lib/supabase';
-import { fontFamilyWithFallback, isHidden, isUntranslated } from '@/lib/content';
+import { fontFamilyWithFallback, isDeleted, isHidden, isUntranslated } from '@/lib/content';
 
 interface DynamicTextProps {
   dbKey: string;
@@ -59,6 +59,7 @@ export default function DynamicText({
   // edition l'element reste visible en fantome, sinon il serait impossible a
   // retrouver pour le reafficher.
   const hidden = isHidden(item);
+  const deleted = isDeleted(item);
 
   const style: React.CSSProperties = {};
   if (item?.font_family) style.fontFamily = fontFamilyWithFallback(item.font_family);
@@ -75,7 +76,7 @@ export default function DynamicText({
     }
   };
 
-  if (hidden && !isEditing) return null;
+  if (deleted || (hidden && !isEditing)) return null;
 
   return (
     <Tag

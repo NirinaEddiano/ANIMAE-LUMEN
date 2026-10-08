@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabase } from '@/lib/supabase';
-import { isHidden } from '@/lib/content';
+import { isDeleted, isHidden } from '@/lib/content';
 
 interface DynamicImageProps {
   dbKey: string;
@@ -57,6 +57,7 @@ export default function DynamicImage({
   // Masquage choisi par l'admin. En edition la photo reste cliquable pour
   // pouvoir etre reaffichee ou remplacee.
   const hidden = isHidden(item);
+  const deleted = isDeleted(item);
 
   const handleClick = () => {
     if (isEditing && onSelectKey) {
@@ -67,7 +68,7 @@ export default function DynamicImage({
     }
   };
 
-  if (hidden && !isEditing) return null;
+  if (deleted || (hidden && !isEditing)) return null;
 
   return (
     <div

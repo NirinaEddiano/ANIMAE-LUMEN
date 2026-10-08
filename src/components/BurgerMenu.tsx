@@ -21,6 +21,7 @@ export default function BurgerMenu({ light = false }: { light?: boolean }) {
 
   const text = (key: string, fallback: string): string => {
     const item = rows.find((r) => r.key === key);
+    if (item?.is_deleted) return '';
     // EN identique au FR (traduction jamais faite) → libellé codé en dur.
     if (!item || (language === 'en' && isUntranslated(item))) return fallback;
     return ((language === 'fr' ? item.value_fr : item.value_en) || '').trim() || fallback;
